@@ -3,7 +3,7 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 19-Apr-17
+#Last edited: 23-Apr-17
 ########################################
 
 ########################################
@@ -229,7 +229,7 @@ urlwrangler(){
 			*"twitch.tv"*)
 				streamname=${url##*/}
 				#Use livestreamer --twitch-oauth-authenticate to get this token (it's in the url):
-				extralsflags=$extralsflags""
+				#extralsflags=$extralsflags" --twitch-oauth-token="
 
 				openstream
 			;;
@@ -385,13 +385,9 @@ openstream() {
 		fi
 	fi
 
+	launchplayer
 	if [ $loopforever == true ]; then
-		while [ $loopforever == true ]; do
-			launchplayer --fullscreen
-			sleep 1
-		done
-	else
-		launchplayer
+		sleep 1
 	fi
 
 	# Exit status 1 might mean streamer closed it or stream not present. Exit status 0 might mean closed by user.
@@ -406,6 +402,10 @@ openstream() {
 
 	if [[ $shouldreopencheck == true && $loopforever == false ]]; then
 		reopencheck
+	else
+		if [[ $shouldreopencheck == false && $loopforever == true ]]; then
+			openstream
+		fi
 	fi
 }
 
@@ -462,6 +462,8 @@ reopencheck() {
 							else
 								if [[ $checklist == "Loop Forever" ]]; then
 									loopforever=true
+									playercmd=$playercmd" --fullscreen"
+									shouldreopencheck=false
 									openstream
 								else
 									if [[ $checklist == "Save A New Link" ]]; then
