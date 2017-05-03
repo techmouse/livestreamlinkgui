@@ -13,6 +13,9 @@ LiveStreamLinkGUI can also save links. This makes it easy to keep track of your 
 ### Loop Forever
 If the stream is lost or closed for whatever reason, you have the option to "loop forever". While doing so, LiveStreamLinkGUI will keep trying to reopen the stream until the script is manually killed. This is best used in a media setup, so you can keep watching your streams while you fall asleep, work, clean the house, or whatever. It works very well with the shutdown command. An example of the shutdown command (which can differ from distro to distro) is `sudo shutdown -hP {minutes}`, which will shutdown the system after the specified number of minutes. So it's similar to sleepmode for TVs.
 
+### Dig for URL (Currently experimental)
+This is a new mode that will "dig" through a link and search for common video types and automatically pipe them into a video player. If you're trying to view a stream or a video, that isn't supported by Livestreamer, Streamlink or other forks, you can take a crack at it with this mode. Keep in mind, it is experimental, so run LiveStreamLinkGUI through a terminal when playing with this just in case something very unexpected happens. That said I tested it using sites like imgur and twit.tv, and it worked completely fine. But I doubt this will work with videos that play using flash. It's important to note this is intended for testing and adding support for non-supported sites. Saving links for unsupported sites is not advised.
+
 ### Additional sites
 I've added support for sites like arconaitv.me, funhaus.roosterteeth.com, and a few other sites. LiveStreamLinkGUI is designed so that adding support for other sites shouldn't be much of a chore.
 
