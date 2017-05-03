@@ -3,7 +3,7 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 23-Apr-17
+#Last edited: 3-MAY-17
 ########################################
 
 ########################################
@@ -151,6 +151,85 @@ inhistorycheck(){
 	fi
 }
 
+findurlbyextension(){
+	ext="$1"
+	if [ $ext ]; then
+		#rm is dangerous; make the file empty instead:
+		>$configdir/livestreamlinkgui-deleteme
+		wget $baseurl -O $configdir/livestreamlinkgui-deleteme
+		tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
+		if [[ "$tempfile" == *"$ext"* ]]; then
+			blocktotest=${tempfile%"$ext"*}
+			blocktotest="$blocktotest""$ext"
+#			blocktotest=${blocktotest##*"\""}
+			# Some urls require different protocols (such as hls, http, etc). So we remove the protocol prefix because it's easier/faster to add a prefix, than it is to swap them. It would be difficult to automatically assign the right prefix without a way to test their validity and without getting the user involved.
+			blocktotest=${blocktotest##*"//"}
+			echo "$blocktotest"
+		else
+			echo ""
+		fi
+		#rm is dangerous; make the file empty instead:
+		>$configdir/livestreamlinkgui-deleteme
+	else
+		echo "ERROR: findurlbyextention needs an extension passed to it."
+	fi
+}
+
+digforurl(){
+	# This function uses nested if statements to dig for common video file extensions and then pipe them to a video player. To add support for a new file type, copy paste a block to use as a template.
+	protocol="$1"
+	if [ $protocol ]; then
+		#rm is dangerous; make the file empty instead:
+		>$configdir/livestreamlinkgui-deleteme
+		wget $baseurl -O $configdir/livestreamlinkgui-deleteme
+		tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
+		if [[ "$tempfile" == *".mp4"* ]]; then
+			blocktotest=${tempfile%".mp4"*}
+			blocktotest=${blocktotest##*"//"}
+			url="$protocol://$blocktotest.mp4"
+			$playercmd $url
+		else
+			if [[ "$tempfile" == *".m3u8"* ]]; then
+				blocktotest=${tempfile%".m3u8"*}
+				blocktotest=${blocktotest##*"//"}
+				url="$protocol://$blocktotest.m3u8"
+				$playercmd $url
+			else
+				if [[ "$tempfile" == *".webm"* ]]; then
+					blocktotest=${tempfile%".webm"*}
+					blocktotest=${blocktotest##*"//"}
+					url="$protocol://$blocktotest.webm"
+					$playercmd "$url"
+				else
+					if [[ "$tempfile" == *".flv"* ]]; then
+						blocktotest=${tempfile%".flv"*}
+						blocktotest=${blocktotest##*"//"}
+						url="$protocol://$blocktotest.flv"
+						$playercmd $url
+					else
+						if [[ "$tempfile" == *".gifv"* ]]; then
+							blocktotest=${tempfile%".gifv"*}
+							blocktotest=${blocktotest##*"//"}
+							url="$protocol://$blocktotest.gifv"
+							$playercmd $url
+						fi
+					fi
+				fi
+			fi
+		fi
+		#rm is dangerous; make the file empty instead:
+		>$configdir/livestreamlinkgui-deleteme
+		if [[ ! $url == "" ]]; then
+			reopentext="$url"
+		else
+			reopentext="No supported file types found."
+		fi
+		reopencheck
+	else
+		echo "ERROR: digforurl needs a protocol passed to it."
+	fi
+}
+
 mainmenu(){
 	echo "zenity --list \\
 	--radiolist \\
@@ -159,7 +238,9 @@ mainmenu(){
 	--title=\"LiveStreamLinkGUI\" \\
 	--column=\"?\" --column=\"Available Choices:\" \\
 	TRUE \"Open A New Link\" \\
-	FALSE \"Save A New Link\" \\" > $configdir/livestreamlinkgui-deleteme
+	FALSE \"Save A New Link\" \\
+	FALSE \"(Experimental) Dig for a URL (NEW) (HTTP)\" \\
+	FALSE \"(Experimental) Dig for a URL (NEW) (HLS)\" \\" > $configdir/livestreamlinkgui-deleteme
 	while read line
 	do
 
@@ -194,14 +275,36 @@ mainmenu(){
 					mainmenu
 				fi
 			else
-				if [[ $baseurl == "Remove A Saved Link" ]]; then
-					removefromhistorydialog
-				else
-					if [[ $baseurl == "Open A New Link" ]]; then
-						urlwrangler
+				if [[ $baseurl == *"Dig"*"HTTP"* ]]; then
+					question=$(zenity --entry --text="URL?" --title="LiveStreamLinkGUI" --width=600)
+					if [ $? == 0 ]; then
+						baseurl=$question
+						digforurl http
 					else
-						putlinkattopofhistory $baseurl
-						urlwrangler $baseurl
+						zenity --error --text="No URL detected."
+						mainmenu
+					fi
+				else
+					if [[ $baseurl == *"Dig"*"HLS"* ]]; then
+						question=$(zenity --entry --text="URL?" --title="LiveStreamLinkGUI" --width=600)
+						if [ $? == 0 ]; then
+							baseurl=$question
+							digforurl hls
+						else
+							zenity --error --text="No URL detected."
+							mainmenu
+						fi
+					else
+						if [[ $baseurl == "Remove A Saved Link" ]]; then
+							removefromhistorydialog
+						else
+							if [[ $baseurl == "Open A New Link" ]]; then
+								urlwrangler
+							else
+								putlinkattopofhistory $baseurl
+								urlwrangler $baseurl
+							fi
+						fi
 					fi
 				fi
 			fi
@@ -229,7 +332,7 @@ urlwrangler(){
 			*"twitch.tv"*)
 				streamname=${url##*/}
 				#Use livestreamer --twitch-oauth-authenticate to get this token (it's in the url):
-				#extralsflags=$extralsflags" --twitch-oauth-token="
+#				extralsflags=$extralsflags" --twitch-oauth-token="
 
 				openstream
 			;;
@@ -246,41 +349,37 @@ urlwrangler(){
 				openstream
 			;;
 
-			*"funhaus.rooster"*)
-				wget $baseurl -O $configdir/livestreamlinkgui-deleteme
-				tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
-				#filter out the m3u8 link.
-				tempfile=${tempfile#*file:\ \'}
-				tempfile=${tempfile%%\',*}
-				url="$tempfile"
-				#rm is dangerous; make the file empty instead:
-				>$configdir/livestreamlinkgui-deleteme
-				if [[ $url =~ "m3u8" ]]; then
-					$playercmd --zoom .5 $url
+			#veetle check
+			*"veetle.com"*)
+				extralsflags=$extralsflags" --player-continuous-http"
+				openstream
+			;;
+
+			#special cases (LiveStreamLinkGUI plays and closes when done):
+			#Non-stream video inputs are better suited here. Copy and paste blocks to use a template.
+			*"roosterteeth.com"*)
+				url=$(findurlbyextension .m3u8)
+				if [[ "$url" == "" ]]; then
+					zenity --error --text="m3u8 link not found. This is usually caused by Rooster Teeth requiring a member subscription. Exiting."
 				else
-					zenity --error --text="m3u8 link not found. Exiting."
+					# findurlbyextension found a url so now we must prefix the proper protocol.
+					url="http://$url"
+					$playercmd --zoom .5 $url
 				fi
 			;;
 
+			*"twit.tv"*)
+				url=$(findurlbyextension .mp4)
+				if [[ "$url" == "" ]]; then
+					zenity --error --text="mp4 link not found. Exiting."
+				else
+					# findurlbyextension found a url so now we must prefix the proper protocol.
+					url="http://$url"
+					$playercmd $url
+				fi
+			;;
 
-#			*"ssh101.com"*)
-#				wget $baseurl -O $configdir/livestreamlinkgui-deleteme
-#				tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
-#				#filter out the m3u8 link.
-#				tempfile=${tempfile#*src=\"http\:\/\/}
-#				tempfile=${tempfile%%\"\>*}
-#				url="http://$tempfile"
-				#rm is dangerous; make the file empty instead:
-#				>$configdir/livestreamlinkgui-deleteme
-#						if [[ $url =~ "m3u8" ]]; then
-#							$playercmd $url
-#						else
-#					zenity --error --text="m3u8 link not found."
-#				fi
-#			;;
-
-
-			#yt check
+			#youtube cases:
 			*"youtube.com"*)
 				shouldreopencheck=false
 				$playercmd --preferred-resolution $youtuberesolution $url $extrayoutubeflags
@@ -288,12 +387,6 @@ urlwrangler(){
 			*"youtu.be"*)
 				shouldreopencheck=false
 				$playercmd --preferred-resolution $youtuberesolution $url $extrayoutubeflags
-			;;
-
-			#veetle check
-			*"veetle.com"*)
-				extralsflags=$extralsflags" --player-continuous-http"
-				openstream
 			;;
 
 			#all others
@@ -357,47 +450,47 @@ checkforchat() {
 }
 
 openstream() {
+	#Non-livestreamer/streamlink supported streams are better suited here. Copy and paste blocks to use a template.
 	if [[ $baseurl =~ "arconaitv.me" ]]; then
-		wget $baseurl -O $configdir/livestreamlinkgui-deleteme
-		tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
-		#filter out the m3u8 link.
-		tempfile=${tempfile#*source src=\"}
-		tempfile=${tempfile%%\"\ *}
-		url="hls://$tempfile"
-		#rm is dangerous; make the file empty instead:
-		>$configdir/livestreamlinkgui-deleteme
-		if [[ ! $url =~ "m3u8" ]]; then
+		url=$(findurlbyextension .m3u8)
+		if [[ $url == "" ]]; then
 			zenity --error --text="m3u8 link not found."
+		else
+			# findurlbyextension found a url so now we must prefix the proper protocol.
+			url="hls://$url"
 		fi
 	fi
 
 	if [[ $baseurl =~ "ssh101.com" ]]; then
-		wget $baseurl -O $configdir/livestreamlinkgui-deleteme
-		tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
-		#filter out the m3u8 link.
-		tempfile=${tempfile#*src=\"http\:\/\/}
-		tempfile=${tempfile%%\"\>*}
-		url="hlsvariant://http://$tempfile"
-		#rm is dangerous; make the file empty instead:
-		>$configdir/livestreamlinkgui-deleteme
-		if [[ ! $url =~ "m3u8" ]]; then
+		url=$(findurlbyextension .m3u8)
+		if [[ $url == "" ]]; then
 			zenity --error --text="m3u8 link not found."
+		else
+			# findurlbyextension found a url so now we must prefix the proper protocol.
+			url="hlsvariant://http://$url"
 		fi
 	fi
 
-	launchplayer
+	# Now we launch our player.
+	if [[ ! $url == "" ]]; then
+		launchplayer
+	fi
+
 	if [ $loopforever == true ]; then
 		sleep 1
 	fi
 
 	# Exit status 1 might mean streamer closed it or stream not present. Exit status 0 might mean closed by user.
+	# Update: Exit status 0 also seems to include when a stream isn't present.
 	exitstatus=$?
 	echo "Exit status: $exitstatus"
 	if [ $exitstatus == 1 ]; then
-		reopentext="$(gettitlename)\'s Stream Lost Or Not Found."
+#		reopentext="$(gettitlename)\'s Stream Lost Or Not Found."
+		reopentext="$(gettitlename)\'s Stream Closed, Lost Or Not Found."
 	fi
 	if [ $exitstatus == 0 ]; then
-		reopentext="$(gettitlename)\'s Stream Closed By $USER."
+#		reopentext="$(gettitlename)\'s Stream Closed By $USER."
+		reopentext="$(gettitlename)\'s Stream Closed, Lost Or Not Found."
 	fi
 
 	if [[ $shouldreopencheck == true && $loopforever == false ]]; then
@@ -428,8 +521,12 @@ reopencheck() {
 	FALSE \"Reopen Stream And Chat(if possible)\" \\
 	FALSE \"Loop Forever\" \\
 	FALSE \"Save Link: $baseurl\" \\
+	FALSE \"(Experimental) Dig for a URL (REOPEN) (HTTP)\" \\
+	FALSE \"(Experimental) Dig for a URL (REOPEN) (HLS)\" \\
 	FALSE \"Open A New Link\" \\
-	FALSE \"Save A New Link\" \\" > $configdir/livestreamlinkgui-deleteme
+	FALSE \"Save A New Link\" \\
+	FALSE \"(Experimental) Dig for a URL (NEW) (HTTP)\" \\
+	FALSE \"(Experimental) Dig for a URL (NEW) (HLS)\" \\" > $configdir/livestreamlinkgui-deleteme
 	while read line
 	do
 		echo "	FALSE \"$line\" \\" >> $configdir/livestreamlinkgui-deleteme
@@ -476,9 +573,41 @@ reopencheck() {
 											mainmenu
 										fi
 									else
-										baseurl=$checklist
-										putlinkattopofhistory $baseurl
-										urlwrangler $baseurl
+										if [[ $checklist == *"Dig"*"REOPEN"*"HTTP"* ]]; then
+											digforurl http
+										else
+											if [[ $checklist == *"Dig"*"REOPEN"*"HLS"* ]]; then
+												digforurl hls
+											else
+												if [[ $checklist == *"Dig"*"NEW"*"HTTP"* ]]; then
+													question=$(zenity --entry --text="URL?" --title="LiveStreamLinkGUI" --width=600)
+													if [ $? == 0 ]; then
+														baseurl=$question
+														digforurl http
+														reopencheck
+													else
+														zenity --error --text="No URL detected."
+														mainmenu
+													fi
+												else
+													if [[ $checklist == *"Dig"*"NEW"*"HLS"* ]]; then
+														question=$(zenity --entry --text="URL?" --title="LiveStreamLinkGUI" --width=600)
+														if [ $? == 0 ]; then
+															baseurl=$question
+															digforurl hls
+															reopencheck
+														else
+															zenity --error --text="No URL detected."
+															mainmenu
+														fi
+													else
+														baseurl=$checklist
+														putlinkattopofhistory $baseurl
+														urlwrangler $baseurl
+													fi
+												fi
+											fi
+										fi
 									fi
 								fi
 							fi
