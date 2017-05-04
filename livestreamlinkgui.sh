@@ -56,7 +56,29 @@ export baseurl=0
 export reopentext=""
 
 launchplayer(){
-	$streamercmd -p "$playercmd $@" $extralsflags $url $lsquality
+echo $url
+	if [[ ! $url == "" ]]; then
+		case $url in
+			*".mp4"*)
+				$playercmd $@ $url
+			;;
+			*".m3u8"*)
+				$playercmd $@ $url
+			;;
+			*".flv"*)
+				$playercmd $@ $url
+			;;
+			*".webm"*)
+				$playercmd $@ $url
+			;;
+			*".gifv"*)
+				$playercmd $@ $url
+			;;
+			*)
+				$streamercmd -p "$playercmd $@" $extralsflags $url $lsquality
+			;;
+		esac
+	fi
 }
 
 gethistorycount(){
@@ -70,29 +92,43 @@ gethistorycount(){
 }
 
 addtohistory(){
-	shouldadd=1
-	while read line
-	do
-		if [[ $1 == $line ]]; then
-			shouldadd=0
+	if [[ "$1" ]]; then
+		shouldadd=true
+		test1=$(removethename "$1")
+		nametest1=$(removetheurl "$1")
+		while read line
+		do
+			test2=$(removethename "$line")
+			nametest2=$(removetheurl "$line")
+			if [[ "$test1" == "$test2" ]]; then
+				shouldadd=false
+				if ! [[ "$nametest1" == "$nametest2" ]]; then
+					shouldadd=true
+					removefromhistory "$1"
+				fi
+			fi
+		done < "$configdir/history"
+		if [ "$shouldadd" == true ]; then
+			echo "$1" >> "$configdir/history"
+			putlinkattopofhistory "$nametest1 $test1"
 		fi
-	done < "$configdir/history"
-	if [ $shouldadd == 1 ]; then
-		echo "$1" >> $configdir/history
-		putlinkattopofhistory "$1"
 	fi
 }
 
 removefromhistory(){
-	cp $configdir/history $configdir/livestreamlinkgui-deleteme
-	>$configdir/history
-	while read line
-	do
-		if ! [[ $1 == $line ]]; then
-			echo "$line" >> $configdir/history
-		fi
-	done < "$configdir/livestreamlinkgui-deleteme"
-	>$configdir/livestreamlinkgui-deleteme
+	if [[ "$1" ]]; then
+		cp "$configdir/history" "$configdir/livestreamlinkgui-deleteme"
+		>$configdir/history
+		test1=$(removethename "$1")
+		while read line
+		do
+			test2=$(removethename "$line")
+			if ! [[ "$test1" == "$test2" ]]; then
+				echo "$line" >> "$configdir/history"
+			fi
+		done < "$configdir/livestreamlinkgui-deleteme"
+		>$configdir/livestreamlinkgui-deleteme
+	fi
 }
 
 removefromhistorydialog(){
@@ -110,10 +146,10 @@ removefromhistorydialog(){
 	choice=$($configdir/livestreamlinkgui-deleteme)
 	>$configdir/livestreamlinkgui-deleteme
 	if [ $? == 0 ]; then
-		if [[ $choice == "Go Back" ]]; then
+		if [[ "$choice" == "Go Back" ]]; then
 			mainmenu
 		else
-			removefromhistory $choice
+			removefromhistory "$choice"
 			mainmenu
 		fi
 	else
@@ -122,14 +158,16 @@ removefromhistorydialog(){
 }
 
 putlinkattopofhistory(){
-	if [ $1 ]; then
-		removefromhistory $1
-		cp $configdir/history $configdir/livestreamlinkgui-deleteme
-		echo $1 > $configdir/history
+	if [[ "$1" ]]; then
+		test1=$(removethename "$1")
+		removefromhistory $test1
+		cp "$configdir/history" "$configdir/livestreamlinkgui-deleteme"
+		echo "$1" > "$configdir/history"
 		while read line
 		do
-			if ! [[ $1 == $line ]]; then
-				echo "$line" >> $configdir/history
+			test2=$(removethename "$line")
+			if ! [[ "$test1" == "$test2" ]]; then
+				echo "$line" >> "$configdir/history"
 			fi
 		done < "$configdir/livestreamlinkgui-deleteme"		
 		>$configdir/livestreamlinkgui-deleteme
@@ -137,17 +175,37 @@ putlinkattopofhistory(){
 }
 
 inhistorycheck(){
-	if [ $1 ]; then
+	if [ "$1" ]; then
 		found=0
 		while read line
 		do
-			if [[ $1 == $line ]]; then
-				found=1
+			if [[ "$1" == "$line" ]]; then
+				found=true
 			fi
 		done < "$configdir/history"
-		if [ $found == 1 ]; then
-			putlinkattopofhistory $1
+		if [ $found == true ]; then
+			putlinkattopofhistory "$1"
 		fi
+	fi
+}
+
+removethename(){
+	tmp="$1"
+	if [ "$tmp" ]; then
+		if [[ "$tmp" == *" "* ]]; then
+			tmp=${tmp##*" "}
+		fi
+		echo "$tmp"
+	fi
+}
+
+removetheurl(){
+	tmp="$1"
+	if [ "$tmp" ]; then
+		if [[ "$tmp" == *" "* ]]; then
+			tmp=${tmp%" "*}
+		fi
+		echo "$tmp"
 	fi
 }
 
@@ -156,7 +214,7 @@ findurlbyextension(){
 	if [ $ext ]; then
 		#rm is dangerous; make the file empty instead:
 		>$configdir/livestreamlinkgui-deleteme
-		wget $baseurl -O $configdir/livestreamlinkgui-deleteme
+		wget "$baseurl" -O $configdir/livestreamlinkgui-deleteme
 		tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
 		if [[ "$tempfile" == *"$ext"* ]]; then
 			blocktotest=${tempfile%"$ext"*}
@@ -176,152 +234,82 @@ findurlbyextension(){
 }
 
 digforurl(){
-	# This function uses nested if statements to dig for common video file extensions and then pipe them to a video player. To add support for a new file type, copy paste a block to use as a template.
-	protocol="$1"
-	if [ $protocol ]; then
-		#rm is dangerous; make the file empty instead:
-		>$configdir/livestreamlinkgui-deleteme
-		wget $baseurl -O $configdir/livestreamlinkgui-deleteme
-		tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
-		if [[ "$tempfile" == *".mp4"* ]]; then
+	# This function digs for common video file extensions and then pipes them to a video player. To add support for a new file type, copy paste a block to use as a template.
+	if ! [ $protocol ]; then
+		local protocol=${baseurl%"//"*}
+		local protocol="$protocol//"
+	else
+		local protocol=$1
+	fi
+	#rm is dangerous; make the file empty instead:
+	>$configdir/livestreamlinkgui-deleteme
+	wget "$baseurl" -O $configdir/livestreamlinkgui-deleteme
+	tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
+	url=""
+	case $tempfile in
+		*".mp4"*)
 			blocktotest=${tempfile%".mp4"*}
 			blocktotest=${blocktotest##*"//"}
 			url="$protocol://$blocktotest.mp4"
-			$playercmd $url
-		else
-			if [[ "$tempfile" == *".m3u8"* ]]; then
-				blocktotest=${tempfile%".m3u8"*}
-				blocktotest=${blocktotest##*"//"}
-				url="$protocol://$blocktotest.m3u8"
-				$playercmd $url
-			else
-				if [[ "$tempfile" == *".webm"* ]]; then
-					blocktotest=${tempfile%".webm"*}
-					blocktotest=${blocktotest##*"//"}
-					url="$protocol://$blocktotest.webm"
-					$playercmd "$url"
-				else
-					if [[ "$tempfile" == *".flv"* ]]; then
-						blocktotest=${tempfile%".flv"*}
-						blocktotest=${blocktotest##*"//"}
-						url="$protocol://$blocktotest.flv"
-						$playercmd $url
-					else
-						if [[ "$tempfile" == *".gifv"* ]]; then
-							blocktotest=${tempfile%".gifv"*}
-							blocktotest=${blocktotest##*"//"}
-							url="$protocol://$blocktotest.gifv"
-							$playercmd $url
-						fi
-					fi
-				fi
-			fi
-		fi
-		#rm is dangerous; make the file empty instead:
-		>$configdir/livestreamlinkgui-deleteme
-		if [[ ! $url == "" ]]; then
-			reopentext="$url"
-		else
-			reopentext="No supported file types found."
-		fi
-		reopencheck
-	else
-		echo "ERROR: digforurl needs a protocol passed to it."
-	fi
-}
-
-mainmenu(){
-	echo "zenity --list \\
-	--radiolist \\
-	--text \"Main Menu:\" \\
-	--width=500 --height=250 \\
-	--title=\"LiveStreamLinkGUI\" \\
-	--column=\"?\" --column=\"Available Choices:\" \\
-	TRUE \"Open A New Link\" \\
-	FALSE \"Save A New Link\" \\
-	FALSE \"(Experimental) Dig for a URL (NEW) (HTTP)\" \\
-	FALSE \"(Experimental) Dig for a URL (NEW) (HLS)\" \\" > $configdir/livestreamlinkgui-deleteme
-	while read line
-	do
-
-# Experimental:
-# Very useful but takes a really long time to load the main menu if the saved history is long. Takes about 3-4 minutes with a saved history of 41.
-# It also lacks support for sites livestreamer/streamlink doesn't support.
-#		$streamercmd $line
-#		if [[ $? == 0 ]]; then
-#			echo "	FALSE \"$line (Online!)\" \\" >> $configdir/livestreamlinkgui-deleteme
-#		else
-#			echo "	FALSE \"$line\" \\" >> $configdir/livestreamlinkgui-deleteme
-#		fi
-
-		echo "	FALSE \"$line\" \\" >> $configdir/livestreamlinkgui-deleteme
-	done < "$configdir/history"
-	echo "	FALSE \"Remove A Saved Link\" \\" >> $configdir/livestreamlinkgui-deleteme
-	echo "	FALSE \"Close Program\"" >> $configdir/livestreamlinkgui-deleteme
-	baseurl=$($configdir/livestreamlinkgui-deleteme)
+			openstream
+		;;
+		*".m3u8"*)
+			blocktotest=${tempfile%".m3u8"*}
+			blocktotest=${blocktotest##*"//"}
+			url="$protocol://$blocktotest.m3u8"
+			openstream
+		;;
+		*".webm"*)
+			blocktotest=${tempfile%".webm"*}
+			blocktotest=${blocktotest##*"//"}
+			url="$protocol://$blocktotest.webm"
+			openstream
+		;;
+		*".flv"*)
+			blocktotest=${tempfile%".flv"*}
+			blocktotest=${blocktotest##*"//"}
+			url="$protocol://$blocktotest.flv"
+			openstream
+		;;
+		*".gifv"*)
+			blocktotest=${tempfile%".gifv"*}
+			blocktotest=${blocktotest##*"//"}
+			url="$protocol://$blocktotest.gifv"
+			openstream
+		;;
+	esac
+	#rm is dangerous; make the file empty instead:
 	>$configdir/livestreamlinkgui-deleteme
-	#Can't use a case statement here because of the save history (without monkeying with arrays). So nested if statements are used instead. It's probably better like this anyways to conserve system resources.
-	if [[ $baseurl ]]; then
-		if [[ $baseurl == "Close Program" ]]; then
-			exit
-		else
-			if [[ $baseurl == "Save A New Link" ]]; then
-				question=$(zenity --entry --text="URL To Save?" --title="LiveStreamLinkGUI" --width=600)
-				if [ $? == 0 ]; then
-					addtohistory $question
-					mainmenu
-				else
-					zenity --error --text="No URL detected."
-					mainmenu
-				fi
-			else
-				if [[ $baseurl == *"Dig"*"HTTP"* ]]; then
-					question=$(zenity --entry --text="URL?" --title="LiveStreamLinkGUI" --width=600)
-					if [ $? == 0 ]; then
-						baseurl=$question
-						digforurl http
-					else
-						zenity --error --text="No URL detected."
-						mainmenu
-					fi
-				else
-					if [[ $baseurl == *"Dig"*"HLS"* ]]; then
-						question=$(zenity --entry --text="URL?" --title="LiveStreamLinkGUI" --width=600)
-						if [ $? == 0 ]; then
-							baseurl=$question
-							digforurl hls
-						else
-							zenity --error --text="No URL detected."
-							mainmenu
-						fi
-					else
-						if [[ $baseurl == "Remove A Saved Link" ]]; then
-							removefromhistorydialog
-						else
-							if [[ $baseurl == "Open A New Link" ]]; then
-								urlwrangler
-							else
-								putlinkattopofhistory $baseurl
-								urlwrangler $baseurl
-							fi
-						fi
-					fi
-				fi
-			fi
-		fi
+
+	if [[ ! $url == "" ]]; then
+		reopentext="$url"
 	else
-		exit
+		reopentext="No supported file types found."
 	fi
+
+	reopencheck
 }
 
 urlwrangler(){
-	if ! [ $1 ]; then
-		baseurl=$(zenity --entry --text="URL?" --title="LiveStreamLinkGUI" --width=600)
+	if ! [[ "$1" ]]; then
+		baseurl=$(getuserinputfromtextbox "URL?")
 	fi
-	url=$baseurl
+
+	if [[ "$baseurl" == *"LSLGUIdig"* ]]; then
+		shouldadddigprefix=true
+	else
+		shouldadddigprefix=false
+	fi
+
+	url=$(removethename "$baseurl")
+
+	if [[ $shouldadddigprefix == true ]]; then
+		url="LSLGUIdig://$url"
+	fi
+
 	shouldreopencheck=true
-	if [ $url ]; then
-		inhistorycheck $baseurl
+	if [[ $url ]]; then
+		inhistorycheck "$baseurl"
 		echo "Opening $url"
 		checkforchat &
 
@@ -332,8 +320,7 @@ urlwrangler(){
 			*"twitch.tv"*)
 				streamname=${url##*/}
 				#Use livestreamer --twitch-oauth-authenticate to get this token (it's in the url):
-#				extralsflags=$extralsflags" --twitch-oauth-token="
-
+				extralsflags=$extralsflags" --twitch-oauth-token=h28uy14dlwn8bnz3vmdx3723p5b653"
 				openstream
 			;;
 
@@ -364,7 +351,8 @@ urlwrangler(){
 				else
 					# findurlbyextension found a url so now we must prefix the proper protocol.
 					url="http://$url"
-					$playercmd --zoom .5 $url
+					playercmd=$playercmd" --zoom .5"
+					openstream
 				fi
 			;;
 
@@ -375,7 +363,7 @@ urlwrangler(){
 				else
 					# findurlbyextension found a url so now we must prefix the proper protocol.
 					url="http://$url"
-					$playercmd $url
+					openstream
 				fi
 			;;
 
@@ -389,12 +377,16 @@ urlwrangler(){
 				$playercmd --preferred-resolution $youtuberesolution $url $extrayoutubeflags
 			;;
 
+			*"LSLGUIdig"*)
+				baseurl=${url#*"//"}
+				digforurl "$url"
+			;;
+
 			#all others
 			*)
 				openstream
 			;;
 		esac
-
 	else
 		zenity --error --text="Empty URL detected."
 		mainmenu
@@ -451,7 +443,7 @@ checkforchat() {
 
 openstream() {
 	#Non-livestreamer/streamlink supported streams are better suited here. Copy and paste blocks to use a template.
-	if [[ $baseurl =~ "arconaitv.me" ]]; then
+	if [[ "$baseurl" =~ "arconaitv.me" ]]; then
 		url=$(findurlbyextension .m3u8)
 		if [[ $url == "" ]]; then
 			zenity --error --text="m3u8 link not found."
@@ -461,7 +453,7 @@ openstream() {
 		fi
 	fi
 
-	if [[ $baseurl =~ "ssh101.com" ]]; then
+	if [[ "$baseurl" =~ "ssh101.com" ]]; then
 		url=$(findurlbyextension .m3u8)
 		if [[ $url == "" ]]; then
 			zenity --error --text="m3u8 link not found."
@@ -482,6 +474,7 @@ openstream() {
 
 	# Exit status 1 might mean streamer closed it or stream not present. Exit status 0 might mean closed by user.
 	# Update: Exit status 0 also seems to include when a stream isn't present.
+	# Update: Exit status 1 seems to also mean site isn't supported.
 	exitstatus=$?
 	echo "Exit status: $exitstatus"
 	if [ $exitstatus == 1 ]; then
@@ -506,8 +499,101 @@ gettitlename() {
 	if [ $streamname != 0 ]; then
 		echo $streamname
 	else
-		echo $baseurl
+		echo "$baseurl"
 	fi	
+}
+
+getuserinputfromtextbox(){
+	text="$1"
+	if [[ "$text" ]]; then
+		echo $(zenity --entry --text="$text" --title="LiveStreamLinkGUI" --width=600)
+	else
+		echo "ERROR: getuserinputfromtextbox requires a text string to be passed to it."
+	fi
+}
+
+mainmenu(){
+	echo "zenity --list \\
+	--radiolist \\
+	--text \"Main Menu:\" \\
+	--width=500 --height=250 \\
+	--title=\"LiveStreamLinkGUI\" \\
+	--column=\"?\" --column=\"Available Choices:\" \\
+	TRUE \"Open A New Link\" \\
+	FALSE \"Save A New Link\" \\
+	FALSE \"(Experimental) Dig for a URL (NEW) (HTTP)\" \\
+	FALSE \"(Experimental) Dig for a URL (NEW) (HLS)\" \\" > $configdir/livestreamlinkgui-deleteme
+	while read line
+	do
+
+# Experimental:
+# Very useful but takes a really long time to load the main menu if the saved history is long. Takes about 3-4 minutes with a saved history of 41.
+# It also lacks support for sites livestreamer/streamlink doesn't support.
+#		$streamercmd $line
+#		if [[ $? == 0 ]]; then
+#			echo "	FALSE \"$line (Online!)\" \\" >> $configdir/livestreamlinkgui-deleteme
+#		else
+#			echo "	FALSE \"$line\" \\" >> $configdir/livestreamlinkgui-deleteme
+#		fi
+
+		echo "	FALSE \"$line\" \\" >> $configdir/livestreamlinkgui-deleteme
+	done < "$configdir/history"
+	echo "	FALSE \"Remove A Saved Link\" \\" >> $configdir/livestreamlinkgui-deleteme
+	echo "	FALSE \"Close Program\"" >> $configdir/livestreamlinkgui-deleteme
+	baseurl=$($configdir/livestreamlinkgui-deleteme)
+	>$configdir/livestreamlinkgui-deleteme
+	#Can't use a case statement here because of the save history (without monkeying with arrays). So nested if statements are used instead. It's probably better like this anyways to conserve system resources.
+	if [[ "$baseurl" ]]; then
+		if [[ "$baseurl" == "Close Program" ]]; then
+			exit
+		else
+			if [[ "$baseurl" == "Save A New Link" ]]; then
+				question=$(getuserinputfromtextbox "URL To Save?\nYou can name links by putting the name before the link.\nThis is completely optional.\nEXAMPLE: \"Don't Do Drugs https://www.ispot.tv/ad/7mvR/the-partnership-at-drugfreeorg-awkward-silence\"\nNOTE: Putting \"LSLGUIdig\" in the name will tell LiveStreamLinkGUI to always dig for a URL.\nThis is for pages that contain mp4/flv/m3u8/webm/etc media, instead of direct links to media.")
+				if [ $? == 0 ]; then
+					addtohistory "$question"
+					mainmenu
+				else
+					zenity --error --text="No URL detected."
+					mainmenu
+				fi
+			else
+				if [[ "$baseurl" == *"Dig"*"HTTP"* ]]; then
+					question=$(getuserinputfromtextbox "URL?")
+					if [ $? == 0 ]; then
+						baseurl="$question"
+						digforurl http
+					else
+						zenity --error --text="No URL detected."
+						mainmenu
+					fi
+				else
+					if [[ "$baseurl" == *"Dig"*"HLS"* ]]; then
+						question=$(getuserinputfromtextbox "URL?")
+						if [ $? == 0 ]; then
+							baseurl="$question"
+							digforurl hls
+						else
+							zenity --error --text="No URL detected."
+							mainmenu
+						fi
+					else
+						if [[ "$baseurl" == "Remove A Saved Link" ]]; then
+							removefromhistorydialog
+						else
+							if [[ "$baseurl" == "Open A New Link" ]]; then
+								urlwrangler
+							else
+								putlinkattopofhistory "$baseurl"
+								urlwrangler "$baseurl"
+							fi
+						fi
+					fi
+				fi
+			fi
+		fi
+	else
+		exit
+	fi
 }
 
 reopencheck() {
@@ -541,8 +627,19 @@ reopencheck() {
 			exit
 		else
 			if [[ $checklist == *"Save Link:"* ]]; then
-				addtohistory $baseurl
-				mainmenu
+				question=$(getuserinputfromtextbox "Name To Save?\nYou can name links. The name will appear before the link.\nIf you don't care about giving it a name, just click \"OK\".\nEXAMPLE: \"Name $(removethename "$baseurl")\"\nIf this link is already in your history:\n\tSaving a new name will overwrite the previous name.\n\tCanceling or leaving this blank will not change the name.\nNOTE: Don't put a space after the name.\nNOTE2: Putting \"LSLGUIdig\" in the name will tell LiveStreamLinkGUI to always dig for a URL.\nThis is for pages that contain mp4/flv/m3u8/webm/etc media, instead of direct links to media.")
+				if [ $? == 0 ]; then
+					if [[ "$question $baseurl" == " "* ]]; then
+						addtohistory "$baseurl"
+					else
+						tmp=$(removethename "$baseurl")
+						addtohistory "$question $(removethename "$baseurl")"
+					fi
+					mainmenu
+				else
+					zenity --error --text="No name given. Saving without name."
+					addtohistory "$baseurl"
+				fi
 			else
 				if [[ $checklist == "Remove A Saved Link" ]]; then
 					removefromhistorydialog
@@ -564,9 +661,9 @@ reopencheck() {
 									openstream
 								else
 									if [[ $checklist == "Save A New Link" ]]; then
-										question=$(zenity --entry --text="URL To Save?" --title="LiveStreamLinkGUI" --width=600)
+										question=$(getuserinputfromtextbox "URL To Save?")
 										if [ $? == 0 ]; then
-											addtohistory $question
+											addtohistory "$question"
 											mainmenu
 										else
 											zenity --error --text="No URL detected."
@@ -580,9 +677,9 @@ reopencheck() {
 												digforurl hls
 											else
 												if [[ $checklist == *"Dig"*"NEW"*"HTTP"* ]]; then
-													question=$(zenity --entry --text="URL?" --title="LiveStreamLinkGUI" --width=600)
+													question=$(getuserinputfromtextbox "URL?")
 													if [ $? == 0 ]; then
-														baseurl=$question
+														baseurl="$question"
 														digforurl http
 														reopencheck
 													else
@@ -591,9 +688,9 @@ reopencheck() {
 													fi
 												else
 													if [[ $checklist == *"Dig"*"NEW"*"HLS"* ]]; then
-														question=$(zenity --entry --text="URL?" --title="LiveStreamLinkGUI" --width=600)
+														question=$(getuserinputfromtextbox "URL?")
 														if [ $? == 0 ]; then
-															baseurl=$question
+															baseurl="$question"
 															digforurl hls
 															reopencheck
 														else
@@ -602,8 +699,8 @@ reopencheck() {
 														fi
 													else
 														baseurl=$checklist
-														putlinkattopofhistory $baseurl
-														urlwrangler $baseurl
+														putlinkattopofhistory "$baseurl"
+														urlwrangler "$baseurl"
 													fi
 												fi
 											fi
@@ -653,13 +750,13 @@ else
 				zenity --warning --text="Canceled. No configuration was written. Setup has been halted. If you want to run the setup again, delete $configdir and run this script again. Otherwise all user specific configurations will have to be created manually." --title="LiveStreamLinkGUI"
 			else
 				#Choice Made.
-				if [[ $question == "Always Ask" ]]; then
+				if [[ "$question" == "Always Ask" ]]; then
 					echo "ask" > $configdir/chatopenpref
 				fi
-				if [[ $question == "Always Open Without Asking" ]]; then
+				if [[ "$question" == "Always Open Without Asking" ]]; then
 					echo "always" > $configdir/chatopenpref
 				fi
-				if [[ $question == "Never Ask Or Open" ]]; then
+				if [[ "$question" == "Never Ask Or Open" ]]; then
 					echo "ignore" > $configdir/chatopenpref
 				fi
 
