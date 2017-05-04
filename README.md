@@ -8,16 +8,19 @@ This is LiveStreamLinkGUI. It's a lightweight GUI for Livestreamer, Streamlink, 
 Some websites have popout chats, such as twitch and vaughnlive. When you give LiveStreamLinkGUI a link for one of these sites, it can ask if you want to open the chat for that stream in your browser. It's important to know only the chat will be opened. So you don't have to worry about your browser eating up a lot of your system resources just to take part in the chat. I designed LiveStreamLinkGUI in a way where adding support for other sites shouldn't be difficult at all. All you need to know is the popout chat's URL and how to parse it.
 
 ### Save Links
-LiveStreamLinkGUI can also save links. This makes it easy to keep track of your favorite streams and even open them without running your browser.
+LiveStreamLinkGUI can save your favorite links. This makes it easy to keep track of streams you watch a lot and even open them without running your browser. You can also name links. Simply put the name before the link when saving. For example: "Don't Do Drugs https://d12gmupx1a6wc4.cloudfront.net/media3/001/206/355/7mvR_360.mp4" If you've been using LiveStreamLinkGUI and want to add names to already existing links, you can do so by editing the file at: $configdir/history.
 
 ### Loop Forever
 If the stream is lost or closed for whatever reason, you have the option to "loop forever". While doing so, LiveStreamLinkGUI will keep trying to reopen the stream until the script is manually killed. This is best used in a media setup, so you can keep watching your streams while you fall asleep, work, clean the house, or whatever. It works very well with the shutdown command. An example of the shutdown command (which can differ from distro to distro) is `sudo shutdown -hP {minutes}`, which will shutdown the system after the specified number of minutes. So it's similar to sleepmode for TVs.
 
 ### Dig for URL (Currently experimental)
-This is a new mode that will "dig" through a link and search for common video types and automatically pipe them into a video player. If you're trying to view a stream or a video, that isn't supported by Livestreamer, Streamlink or other forks, you can take a crack at it with this mode. Keep in mind, it is experimental, so run LiveStreamLinkGUI through a terminal when playing with this just in case something very unexpected happens. That said I tested it using sites like imgur and twit.tv, and it worked completely fine. But I doubt this will work with videos that play using flash. It's important to note this is intended for testing and adding support for non-supported sites. Saving links for unsupported sites is not advised.
+This is a new mode that will "dig" through a link and search for common video types and automatically pipe them into a video player. If you're trying to view a stream or a video, that isn't supported by Livestreamer, Streamlink or other forks, you can take a crack at it with this mode. Keep in mind, it is experimental, so run LiveStreamLinkGUI through a terminal when playing with this just in case something very unexpected happens. That said I tested it using sites like imgur and twit.tv, and it worked completely fine. But I doubt this will work with videos that play using flash. It's important to note this is intended for testing and adding support for non-supported sites. Saving links for unsupported sites is not advised. However, if you want to save these links, make sure you put "LSLGUIdig" in the name. For example: "Don't Do Drugs LSLGUIdig https://www.ispot.tv/ad/7mvR/the-partnership-at-drugfreeorg-awkward-silence"
 
 ### Additional sites
-I've added support for sites like arconaitv.me, funhaus.roosterteeth.com, and a few other sites. LiveStreamLinkGUI is designed so that adding support for other sites shouldn't be much of a chore.
+I've added support for sites like arconaitv.me, roosterteeth.com, and a few other sites. LiveStreamLinkGUI is designed so that adding support for other sites shouldn't be much of a chore.
+
+### Additional Media
+LiveStreamLinkGUI doesn't just support streams. It also supports direct links to media. Including media on your computer. And if you want to watch something on a webpage but don't have the direct link to it, let LiveStreamLinkGUI "dig" for it automatically.
 
 ### Configurations
 All of the user specific configurations are at the top of the script. I would recommend going through them before running the script, but there is also a first time setup GUI which will help take you through the more basic configurations.
