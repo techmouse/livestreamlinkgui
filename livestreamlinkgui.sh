@@ -3,7 +3,7 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 3-MAY-17
+#Last edited: 4-MAY-17
 ########################################
 
 ########################################
@@ -449,7 +449,7 @@ openstream() {
 			zenity --error --text="m3u8 link not found."
 		else
 			# findurlbyextension found a url so now we must prefix the proper protocol.
-			url="hls://$url"
+			url="http://$url"
 		fi
 	fi
 
