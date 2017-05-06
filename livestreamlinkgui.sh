@@ -3,7 +3,7 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 4-MAY-17
+#Last edited: 6-MAY-17
 ########################################
 
 ########################################
@@ -32,7 +32,7 @@ else
 fi
 
 #Media player command including flags. If you want to change to a different player, or change how VLC works, you can change the variable below.
-export playercmd="vlc --network-caching=15000 --no-qt-error-dialogs"
+export playercmd="vlc --network-caching=15000 --no-qt-error-dialogs --no-repeat --no-loop --play-and-exit"
 
 #Extra flags for livestreamer/streamlink. If you want to add some extra flags for livestreamer, streamlink or any future forks, add them to the variable below.
 export extralsflags=""
@@ -320,7 +320,7 @@ urlwrangler(){
 			*"twitch.tv"*)
 				streamname=${url##*/}
 				#Use livestreamer --twitch-oauth-authenticate to get this token (it's in the url):
-				extralsflags=$extralsflags" --twitch-oauth-token=h28uy14dlwn8bnz3vmdx3723p5b653"
+				#extralsflags=$extralsflags" --twitch-oauth-token="
 				openstream
 			;;
 
