@@ -3,7 +3,7 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 6-MAY-17
+#Last edited: 7-MAY-17
 ########################################
 
 ########################################
@@ -56,7 +56,6 @@ export baseurl=0
 export reopentext=""
 
 launchplayer(){
-echo $url
 	if [[ ! $url == "" ]]; then
 		case $url in
 			*".mp4"*)
@@ -102,7 +101,7 @@ addtohistory(){
 			nametest2=$(removetheurl "$line")
 			if [[ "$test1" == "$test2" ]]; then
 				shouldadd=false
-				if ! [[ "$nametest1" == "$nametest2" ]]; then
+				if [[ "$nametest1" != "" ]] && [[ "$nametest1" != "$nametest2" ]]; then
 					shouldadd=true
 					removefromhistory "$1"
 				fi
@@ -110,7 +109,7 @@ addtohistory(){
 		done < "$configdir/history"
 		if [ "$shouldadd" == true ]; then
 			echo "$1" >> "$configdir/history"
-			putlinkattopofhistory "$nametest1 $test1"
+			putlinkattopofhistory "$1"
 		fi
 	fi
 }
@@ -190,22 +189,24 @@ inhistorycheck(){
 }
 
 removethename(){
-	tmp="$1"
-	if [ "$tmp" ]; then
-		if [[ "$tmp" == *" "* ]]; then
-			tmp=${tmp##*" "}
+	if [ "$1" ]; then
+		if [[ "$1" == *" "* ]]; then
+			tmp=${1##*" "}
+			echo "$tmp"
+		else
+			echo "$1"
 		fi
-		echo "$tmp"
 	fi
 }
 
 removetheurl(){
-	tmp="$1"
-	if [ "$tmp" ]; then
-		if [[ "$tmp" == *" "* ]]; then
-			tmp=${tmp%" "*}
+	if [ "$1" ]; then
+		if [[ "$1" == *" "* ]]; then
+			tmp=${1%" "*}
+			echo "$tmp"
+		else
+			echo ""
 		fi
-		echo "$tmp"
 	fi
 }
 
@@ -320,7 +321,7 @@ urlwrangler(){
 			*"twitch.tv"*)
 				streamname=${url##*/}
 				#Use livestreamer --twitch-oauth-authenticate to get this token (it's in the url):
-				#extralsflags=$extralsflags" --twitch-oauth-token="
+				#extralsflags="$extralsflags --twitch-oauth-token="
 				openstream
 			;;
 
@@ -450,6 +451,7 @@ openstream() {
 		else
 			# findurlbyextension found a url so now we must prefix the proper protocol.
 			url="http://$url"
+#			playercmd="$playercmd --no-repeat"
 		fi
 	fi
 
@@ -629,10 +631,9 @@ reopencheck() {
 			if [[ $checklist == *"Save Link:"* ]]; then
 				question=$(getuserinputfromtextbox "Name To Save?\nYou can name links. The name will appear before the link.\nIf you don't care about giving it a name, just click \"OK\".\nEXAMPLE: \"Name $(removethename "$baseurl")\"\nIf this link is already in your history:\n\tSaving a new name will overwrite the previous name.\n\tCanceling or leaving this blank will not change the name.\nNOTE: Don't put a space after the name.\nNOTE2: Putting \"LSLGUIdig\" in the name will tell LiveStreamLinkGUI to always dig for a URL.\nThis is for pages that contain mp4/flv/m3u8/webm/etc media, instead of direct links to media.")
 				if [ $? == 0 ]; then
-					if [[ "$question $baseurl" == " "* ]]; then
-						addtohistory "$baseurl"
+					if [[ $question == "" ]]; then
+						addtohistory $baseurl
 					else
-						tmp=$(removethename "$baseurl")
 						addtohistory "$question $(removethename "$baseurl")"
 					fi
 					mainmenu
