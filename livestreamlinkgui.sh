@@ -3,7 +3,7 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 7-MAY-17
+#Last edited: 16-JUN-17
 ########################################
 
 ########################################
@@ -104,6 +104,8 @@ addtohistory(){
 				if [[ "$nametest1" != "" ]] && [[ "$nametest1" != "$nametest2" ]]; then
 					shouldadd=true
 					removefromhistory "$1"
+				else
+					putlinkattopofhistory "$1"
 				fi
 			fi
 		done < "$configdir/history"
@@ -321,7 +323,7 @@ urlwrangler(){
 			*"twitch.tv"*)
 				streamname=${url##*/}
 				#Use livestreamer --twitch-oauth-authenticate to get this token (it's in the url):
-				#extralsflags="$extralsflags --twitch-oauth-token="
+#				extralsflags="$extralsflags --twitch-oauth-token="
 				openstream
 			;;
 
@@ -409,6 +411,22 @@ openchat() {
 		streamname=${url##*/}
 		xdg-open http://www.hitbox.tv/embedchat/$streamname?autoconnect=true
 	fi
+
+	if [[ $url =~ "arconaitv.me" ]]; then
+		#rm is dangerous; make the file empty instead:
+		>$configdir/livestreamlinkgui-deleteme
+		wget "$baseurl" -O $configdir/livestreamlinkgui-deleteme
+		tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
+		if [[ "$tempfile" == *"cbox"* ]]; then
+			boxid=${tempfile##*"boxid="}
+			boxid=${boxid%"&#038;"*}
+			boxtag=${tempfile##*"boxtag="}
+			boxtag=${boxtag%%"\" "*}
+			xdg-open "https://www7.cbox.ws/box/?boxid=$boxid&boxtag=$boxtag&sec="
+		fi
+		#rm is dangerous; make the file empty instead:
+		>$configdir/livestreamlinkgui-deleteme
+	fi
 }
 
 checkforchat() {
@@ -432,6 +450,15 @@ checkforchat() {
 		if [[ $url =~ "vaughnlive.tv" ]]; then
 			streamname=${url##*/}
 			zenity --question --text="Vaughnlive link detected. Open $streamname's chat?" --title="LiveStreamLinkGUI: $streamname"
+			if [[ $? == 0 ]]; then
+				openchat
+			fi
+		fi
+
+		if [[ $url =~ "arconaitv.me" ]]; then
+			streamname=${url##*arconaitv.me/}
+			streamname=$(echo $streamname | sed 's/\///g')
+			zenity --question --text="Arconai link detected. Open $streamname's chat?" --title="LiveStreamLinkGUI: $streamname"
 			if [[ $? == 0 ]]; then
 				openchat
 			fi
