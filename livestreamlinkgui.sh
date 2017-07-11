@@ -592,7 +592,7 @@ mainmenu(){
 			exit
 		else
 			if [[ "$baseurl" == "Save A New Link" ]]; then
-				question=$(getuserinputfromtextbox "URL To Save?\nYou can name links by putting the name before the link.\nThis is completely optional.\nEXAMPLE: \"Don't Do Drugs https://www.ispot.tv/ad/7mvR/the-partnership-at-drugfreeorg-awkward-silence\"\nNOTE: Putting \"LSLGUIdig\" in the name will tell LiveStreamLinkGUI to always dig for a URL.\nThis is for pages that contain mp4/flv/m3u8/webm/etc media, instead of direct links to media.")
+				question=$(getuserinputfromtextbox "URL To Save?\nYou can name links by putting the name before the link.\nThis is completely optional.\nEXAMPLE: \"Don't Do Drugs https://www.ispot.tv/ad/7mvR/the-partnership-at-drugfreeorg-awkward-silence\"")
 				if [ $? == 0 ]; then
 					addtohistory "$question"
 					mainmenu
@@ -672,7 +672,7 @@ reopencheck() {
 			exit
 		else
 			if [[ $checklist == *"Save Link:"* ]]; then
-				question=$(getuserinputfromtextbox "Name To Save?\nYou can name links. The name will appear before the link.\nIf you don't care about giving it a name, just click \"OK\".\nEXAMPLE: \"Name $(removethename "$baseurl")\"\nIf this link is already in your history:\n\tSaving a new name will overwrite the previous name.\n\tCanceling or leaving this blank will not change the name.\nNOTE: Don't put a space after the name.\nNOTE2: Putting \"LSLGUIdig\" in the name will tell LiveStreamLinkGUI to always dig for a URL.\nThis is for pages that contain mp4/flv/m3u8/webm/etc media, instead of direct links to media.")
+				question=$(getuserinputfromtextbox "Name To Save?\nYou can name links. The name will appear before the link.\nIf you don't care about giving it a name, just click \"OK\".\nEXAMPLE: \"Name $(removethename "$baseurl")\"\nIf this link is already in your history:\n\tSaving a new name will overwrite the previous name.\n\tCanceling or leaving this blank will not change the name.\nNOTE: Don't put a space after the name.")
 				if [ $? == 0 ]; then
 					if [[ $question == "" ]]; then
 						addtohistory $baseurl
