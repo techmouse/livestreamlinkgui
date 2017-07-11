@@ -3,7 +3,7 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 16-JUN-17
+#Last edited: 11-JUL-17
 ########################################
 
 ########################################
@@ -42,6 +42,9 @@ export youtuberesolution="360p"
 #Extra flags for playing Youtube videos in VLC. This is for any extra flags you would like to have when opening Youtube videos.
 export extrayoutubeflags="--play-and-exit"
 
+#Add file extensions for media types here. These are the file types LiveStreamLinkGUI will dig for and how it handles direct links to media, including local and saved links. To add support for a new file type, simply add its extension to this array.
+export filetypes=(".mp4" ".m3u8" ".flv" ".webm" ".gifv" ".ogg" ".mp3" ".mpg" ".vob" ".avi" ".opus" ".ts" ".wav")
+
 ########################################
 #End of User Preferences
 ########################################
@@ -54,29 +57,24 @@ export streamname=0
 export loopforever=false
 export baseurl=0
 export reopentext=""
+export shouldreopencheck=true
 
 launchplayer(){
-	if [[ ! $url == "" ]]; then
-		case $url in
-			*".mp4"*)
-				$playercmd $@ $url
-			;;
-			*".m3u8"*)
-				$playercmd $@ $url
-			;;
-			*".flv"*)
-				$playercmd $@ $url
-			;;
-			*".webm"*)
-				$playercmd $@ $url
-			;;
-			*".gifv"*)
-				$playercmd $@ $url
-			;;
-			*)
-				$streamercmd -p "$playercmd $@" $extralsflags $url $lsquality
-			;;
-		esac
+	if [[ ! "$url" == "" ]]; then
+		found=false
+		for i in ${!filetypes[@]}; do
+			if [[ "$url" == *"${filetypes[$i]}"* ]] && [[ $found == false ]]; then
+				found=true
+				$playercmd $@ "$url"
+			fi
+		done
+		if [[ $found == false ]]; then
+			result=$($streamercmd -p "$playercmd $@" $extralsflags "$url" "$lsquality")
+			echo "$result"
+			if [[ $result == *"No plugin can handle"* ]]; then
+				digforurl http
+			fi
+		fi
 	fi
 }
 
@@ -90,11 +88,56 @@ gethistorycount(){
 	counter=0
 }
 
+historyfilter(){
+	if [[ "$1" ]]; then
+		if [[ "$1" == *"Online"* ]]; then
+			echo $(echo "$1" | sed 's/(Online!)/LSLping/g')
+		else
+			if [[ "$1" == *"Offline"* ]]; then
+				echo $(echo "$1" | sed 's/(Offline)/LSLping/g')
+			else
+				echo "$1"
+			fi
+		fi
+	fi
+}
+
+getpingstring(){
+	if [[ "$1" ]]; then
+# Very useful but takes a really long time to load the menu if the saved history is long. Takes about 3-4 minutes with a saved history of 41.
+# It also lacks support for sites livestreamer/streamlink doesn't support.
+		found=false
+		if [[ $(removetheurl "$1") == *"LSLping"* ]]; then
+			pingresult=$($streamercmd $(removethename "$1"))
+			if [[ $pingresult == *"Found matching plugin"* ]]; then
+				found=true
+				if [[ $pingresult == *"currently unavailable"* ]]; then
+					echo $(echo "$1" | sed 's/LSLping/(Offline)/g')
+				else
+					echo $(echo "$1" | sed 's/LSLping/(Online!)/g')
+				fi
+			fi
+			if [[ $found == false ]]; then
+				pingresult=$(ping -c 1 $(removethename "$1"))
+				if [[ "$pingresult" == *"unknown host"* ]]; then
+					echo $(echo "$1" | sed 's/LSLping/(Offline)/g')
+				else
+					found=true
+					echo $(echo "$1" | sed 's/LSLping/(Online!)/g')
+				fi
+			fi
+		else
+			echo "$1"
+		fi
+	fi
+}
+
 addtohistory(){
 	if [[ "$1" ]]; then
+		filtered=$(historyfilter "$1")
 		shouldadd=true
-		test1=$(removethename "$1")
-		nametest1=$(removetheurl "$1")
+		test1=$(removethename "$filtered")
+		nametest1=$(removetheurl "$filtered")
 		while read line
 		do
 			test2=$(removethename "$line")
@@ -103,15 +146,15 @@ addtohistory(){
 				shouldadd=false
 				if [[ "$nametest1" != "" ]] && [[ "$nametest1" != "$nametest2" ]]; then
 					shouldadd=true
-					removefromhistory "$1"
+					removefromhistory "$filtered"
 				else
-					putlinkattopofhistory "$1"
+					putlinkattopofhistory "$filtered"
 				fi
 			fi
 		done < "$configdir/history"
 		if [ "$shouldadd" == true ]; then
-			echo "$1" >> "$configdir/history"
-			putlinkattopofhistory "$1"
+			echo "$filtered" >> "$configdir/history"
+			putlinkattopofhistory "$filtered"
 		fi
 	fi
 }
@@ -160,10 +203,11 @@ removefromhistorydialog(){
 
 putlinkattopofhistory(){
 	if [[ "$1" ]]; then
-		test1=$(removethename "$1")
-		removefromhistory $test1
+		filtered=$(historyfilter "$1")
+		test1=$(removethename "$filtered")
+		removefromhistory "$test1"
 		cp "$configdir/history" "$configdir/livestreamlinkgui-deleteme"
-		echo "$1" > "$configdir/history"
+		echo "$filtered" > "$configdir/history"
 		while read line
 		do
 			test2=$(removethename "$line")
@@ -177,7 +221,7 @@ putlinkattopofhistory(){
 
 inhistorycheck(){
 	if [ "$1" ]; then
-		found=0
+		found=false
 		while read line
 		do
 			if [[ "$1" == "$line" ]]; then
@@ -224,6 +268,7 @@ findurlbyextension(){
 			blocktotest="$blocktotest""$ext"
 #			blocktotest=${blocktotest##*"\""}
 			# Some urls require different protocols (such as hls, http, etc). So we remove the protocol prefix because it's easier/faster to add a prefix, than it is to swap them. It would be difficult to automatically assign the right prefix without a way to test their validity and without getting the user involved.
+			blocktotest=$(echo $blocktotest | sed 's/\\//g')
 			blocktotest=${blocktotest##*"//"}
 			echo "$blocktotest"
 		else
@@ -237,7 +282,7 @@ findurlbyextension(){
 }
 
 digforurl(){
-	# This function digs for common video file extensions and then pipes them to a video player. To add support for a new file type, copy paste a block to use as a template.
+	# This function digs for common video file extensions and then pipes them to a video player.
 	if ! [ $protocol ]; then
 		local protocol=${baseurl%"//"*}
 		local protocol="$protocol//"
@@ -249,38 +294,16 @@ digforurl(){
 	wget "$baseurl" -O $configdir/livestreamlinkgui-deleteme
 	tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
 	url=""
-	case $tempfile in
-		*".mp4"*)
-			blocktotest=${tempfile%".mp4"*}
+	found=false
+	for i in ${!filetypes[@]}; do
+		if [[ "$tempfile" == *"${filetypes[$i]}"* ]] && [[ $found == false ]]; then
+			found=true
+			blocktotest=${tempfile%"${filetypes[$i]}"*}
 			blocktotest=${blocktotest##*"//"}
-			url="$protocol://$blocktotest.mp4"
+			url="$protocol://$blocktotest${filetypes[$i]}"
 			openstream
-		;;
-		*".m3u8"*)
-			blocktotest=${tempfile%".m3u8"*}
-			blocktotest=${blocktotest##*"//"}
-			url="$protocol://$blocktotest.m3u8"
-			openstream
-		;;
-		*".webm"*)
-			blocktotest=${tempfile%".webm"*}
-			blocktotest=${blocktotest##*"//"}
-			url="$protocol://$blocktotest.webm"
-			openstream
-		;;
-		*".flv"*)
-			blocktotest=${tempfile%".flv"*}
-			blocktotest=${blocktotest##*"//"}
-			url="$protocol://$blocktotest.flv"
-			openstream
-		;;
-		*".gifv"*)
-			blocktotest=${tempfile%".gifv"*}
-			blocktotest=${blocktotest##*"//"}
-			url="$protocol://$blocktotest.gifv"
-			openstream
-		;;
-	esac
+		fi
+	done
 	#rm is dangerous; make the file empty instead:
 	>$configdir/livestreamlinkgui-deleteme
 
@@ -415,13 +438,13 @@ openchat() {
 	if [[ $url =~ "arconaitv.me" ]]; then
 		#rm is dangerous; make the file empty instead:
 		>$configdir/livestreamlinkgui-deleteme
-		wget "$baseurl" -O $configdir/livestreamlinkgui-deleteme
+		wget "$url" -O $configdir/livestreamlinkgui-deleteme
 		tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
 		if [[ "$tempfile" == *"cbox"* ]]; then
 			boxid=${tempfile##*"boxid="}
-			boxid=${boxid%"&#038;"*}
+			boxid=${boxid%%"&"*}
 			boxtag=${tempfile##*"boxtag="}
-			boxtag=${boxtag%%"\" "*}
+			boxtag=${boxtag%%"&"*}
 			xdg-open "https://www7.cbox.ws/box/?boxid=$boxid&boxtag=$boxtag&sec="
 		fi
 		#rm is dangerous; make the file empty instead:
@@ -471,7 +494,7 @@ checkforchat() {
 
 openstream() {
 	#Non-livestreamer/streamlink supported streams are better suited here. Copy and paste blocks to use a template.
-	if [[ "$baseurl" =~ "arconaitv.me" ]]; then
+	if [[ "$baseurl" =~ "arconaitv.me" && true == false ]]; then
 		url=$(findurlbyextension .m3u8)
 		if [[ $url == "" ]]; then
 			zenity --error --text="m3u8 link not found."
@@ -549,23 +572,15 @@ mainmenu(){
 	--title=\"LiveStreamLinkGUI\" \\
 	--column=\"?\" --column=\"Available Choices:\" \\
 	TRUE \"Open A New Link\" \\
-	FALSE \"Save A New Link\" \\
-	FALSE \"(Experimental) Dig for a URL (NEW) (HTTP)\" \\
-	FALSE \"(Experimental) Dig for a URL (NEW) (HLS)\" \\" > $configdir/livestreamlinkgui-deleteme
+	FALSE \"Save A New Link\" \\" > $configdir/livestreamlinkgui-deleteme
+#	FALSE \"(Experimental) Dig for a URL (NEW) (HTTP)\" \\
+#	FALSE \"(Experimental) Dig for a URL (NEW) (HLS)\" \\" > $configdir/livestreamlinkgui-deleteme
 	while read line
 	do
 
-# Experimental:
-# Very useful but takes a really long time to load the main menu if the saved history is long. Takes about 3-4 minutes with a saved history of 41.
-# It also lacks support for sites livestreamer/streamlink doesn't support.
-#		$streamercmd $line
-#		if [[ $? == 0 ]]; then
-#			echo "	FALSE \"$line (Online!)\" \\" >> $configdir/livestreamlinkgui-deleteme
-#		else
-#			echo "	FALSE \"$line\" \\" >> $configdir/livestreamlinkgui-deleteme
-#		fi
+		string=$(getpingstring "$line")
+		echo "	FALSE \"$string\" \\" >> $configdir/livestreamlinkgui-deleteme
 
-		echo "	FALSE \"$line\" \\" >> $configdir/livestreamlinkgui-deleteme
 	done < "$configdir/history"
 	echo "	FALSE \"Remove A Saved Link\" \\" >> $configdir/livestreamlinkgui-deleteme
 	echo "	FALSE \"Close Program\"" >> $configdir/livestreamlinkgui-deleteme
@@ -636,15 +651,16 @@ reopencheck() {
 	FALSE \"Reopen Stream And Chat(if possible)\" \\
 	FALSE \"Loop Forever\" \\
 	FALSE \"Save Link: $baseurl\" \\
-	FALSE \"(Experimental) Dig for a URL (REOPEN) (HTTP)\" \\
-	FALSE \"(Experimental) Dig for a URL (REOPEN) (HLS)\" \\
 	FALSE \"Open A New Link\" \\
-	FALSE \"Save A New Link\" \\
-	FALSE \"(Experimental) Dig for a URL (NEW) (HTTP)\" \\
-	FALSE \"(Experimental) Dig for a URL (NEW) (HLS)\" \\" > $configdir/livestreamlinkgui-deleteme
+	FALSE \"Save A New Link\" \\" > $configdir/livestreamlinkgui-deleteme
+#	FALSE \"(Experimental) Dig for a URL (REOPEN) (HTTP)\" \\
+#	FALSE \"(Experimental) Dig for a URL (REOPEN) (HLS)\" \\
+#	FALSE \"(Experimental) Dig for a URL (NEW) (HTTP)\" \\
+#	FALSE \"(Experimental) Dig for a URL (NEW) (HLS)\" \\" > $configdir/livestreamlinkgui-deleteme
 	while read line
 	do
-		echo "	FALSE \"$line\" \\" >> $configdir/livestreamlinkgui-deleteme
+		string=$(getpingstring "$line")
+		echo "	FALSE \"$string\" \\" >> $configdir/livestreamlinkgui-deleteme
 	done < "$configdir/history"
 	echo "	FALSE \"Remove A Saved Link\" \\" >> $configdir/livestreamlinkgui-deleteme
 	echo "	FALSE \"Close Program\"" >> $configdir/livestreamlinkgui-deleteme
