@@ -3,7 +3,7 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 11-JUL-17
+#Last edited: 15-JUL-17
 ########################################
 
 ########################################
@@ -69,10 +69,11 @@ launchplayer(){
 			fi
 		done
 		if [[ $found == false ]]; then
-			result=$($streamercmd -p "$playercmd $@" $extralsflags "$url" "$lsquality")
-			echo "$result"
-			if [[ $result == *"No plugin can handle"* ]]; then
+			result=$($streamercmd "$url")
+			if [[ "$result" == *"No plugin can handle"* ]]; then
 				digforurl http
+			else
+				$streamercmd -p "$playercmd $@" $extralsflags "$url" "$lsquality"
 			fi
 		fi
 	fi
@@ -91,10 +92,10 @@ gethistorycount(){
 historyfilter(){
 	if [[ "$1" ]]; then
 		if [[ "$1" == *"Online"* ]]; then
-			echo $(echo "$1" | sed 's/(Online!)/LSLping/g')
+			echo $(echo "$1" | sed 's/(Online!)/LSLGUIping/g')
 		else
 			if [[ "$1" == *"Offline"* ]]; then
-				echo $(echo "$1" | sed 's/(Offline)/LSLping/g')
+				echo $(echo "$1" | sed 's/(Offline)/LSLGUIping/g')
 			else
 				echo "$1"
 			fi
@@ -107,23 +108,28 @@ getpingstring(){
 # Very useful but takes a really long time to load the menu if the saved history is long. Takes about 3-4 minutes with a saved history of 41.
 # It also lacks support for sites livestreamer/streamlink doesn't support.
 		found=false
-		if [[ $(removetheurl "$1") == *"LSLping"* ]]; then
+		if [[ $(removetheurl "$1") == *"LSLGUIping"* ]]; then
 			pingresult=$($streamercmd $(removethename "$1"))
-			if [[ $pingresult == *"Found matching plugin"* ]]; then
+			if [[ "$pingresult" == *"Found matching plugin"* ]]; then
 				found=true
-				if [[ $pingresult == *"currently unavailable"* ]]; then
-					echo $(echo "$1" | sed 's/LSLping/(Offline)/g')
+				if [[ "$pingresult" == *"No playable streams found on this URL"* ]]; then
+					echo $(echo "$1" | sed 's/LSLGUIping/(Offline)/g')
 				else
-					echo $(echo "$1" | sed 's/LSLping/(Online!)/g')
+					if [[ "$pingresult" == *"is hosting"* ]]; then
+						echo $(echo "$1" | sed 's/LSLGUIping/(Hosting)/g')
+					else
+						echo $(echo "$1" | sed 's/LSLGUIping/(Online!)/g')
+					fi
 				fi
 			fi
 			if [[ $found == false ]]; then
-				pingresult=$(ping -c 1 $(removethename "$1"))
-				if [[ "$pingresult" == *"unknown host"* ]]; then
-					echo $(echo "$1" | sed 's/LSLping/(Offline)/g')
+				ping -q -c 1 $(removethename "$1") > /dev/null
+				pingresult=$?
+				if [[ "$pingresult" == 0 ]]; then
+					echo $(echo "$1" | sed 's/LSLGUIping/(Online!)/g')
 				else
 					found=true
-					echo $(echo "$1" | sed 's/LSLping/(Online!)/g')
+					echo $(echo "$1" | sed 's/LSLGUIping/(Offline)/g')
 				fi
 			fi
 		else
@@ -135,27 +141,11 @@ getpingstring(){
 addtohistory(){
 	if [[ "$1" ]]; then
 		filtered=$(historyfilter "$1")
-		shouldadd=true
-		test1=$(removethename "$filtered")
-		nametest1=$(removetheurl "$filtered")
-		while read line
-		do
-			test2=$(removethename "$line")
-			nametest2=$(removetheurl "$line")
-			if [[ "$test1" == "$test2" ]]; then
-				shouldadd=false
-				if [[ "$nametest1" != "" ]] && [[ "$nametest1" != "$nametest2" ]]; then
-					shouldadd=true
-					removefromhistory "$filtered"
-				else
-					putlinkattopofhistory "$filtered"
-				fi
-			fi
-		done < "$configdir/history"
-		if [ "$shouldadd" == true ]; then
+		urltest=$(removethename "$filtered")
+		if [[ $(isinhistory "$urltest") == false ]]; then
 			echo "$filtered" >> "$configdir/history"
-			putlinkattopofhistory "$filtered"
 		fi
+		putlinkattopofhistory "$filtered"
 	fi
 }
 
@@ -219,17 +209,31 @@ putlinkattopofhistory(){
 	fi
 }
 
+isinhistory(){
+	if [ "$1" ]; then
+		found=false
+		while read line
+		do
+			if [[ $(removethename "$1") == $(removethename "$line") ]]; then
+				found=true
+			fi
+		done < "$configdir/history"
+		echo $found
+	fi
+}
+
 inhistorycheck(){
 	if [ "$1" ]; then
 		found=false
 		while read line
 		do
-			if [[ "$1" == "$line" ]]; then
+			if [[ $(removethename "$1") == $(removethename "$line") ]]; then
 				found=true
+				baseurl="$line"
 			fi
 		done < "$configdir/history"
 		if [ $found == true ]; then
-			putlinkattopofhistory "$1"
+			putlinkattopofhistory "$baseurl"
 		fi
 	fi
 }
@@ -284,14 +288,14 @@ findurlbyextension(){
 digforurl(){
 	# This function digs for common video file extensions and then pipes them to a video player.
 	if ! [ $protocol ]; then
-		local protocol=${baseurl%"//"*}
+		local protocol=${url%"//"*}
 		local protocol="$protocol//"
 	else
 		local protocol=$1
 	fi
 	#rm is dangerous; make the file empty instead:
 	>$configdir/livestreamlinkgui-deleteme
-	wget "$baseurl" -O $configdir/livestreamlinkgui-deleteme
+	wget "$url" -O $configdir/livestreamlinkgui-deleteme
 	tempfile=$(cat $configdir/livestreamlinkgui-deleteme)
 	url=""
 	found=false
@@ -496,7 +500,7 @@ openstream() {
 	#Non-livestreamer/streamlink supported streams are better suited here. Copy and paste blocks to use a template.
 	if [[ "$baseurl" =~ "arconaitv.me" && true == false ]]; then
 		url=$(findurlbyextension .m3u8)
-		if [[ $url == "" ]]; then
+		if [[ "$url" == "" ]]; then
 			zenity --error --text="m3u8 link not found."
 		else
 			# findurlbyextension found a url so now we must prefix the proper protocol.
@@ -507,7 +511,7 @@ openstream() {
 
 	if [[ "$baseurl" =~ "ssh101.com" ]]; then
 		url=$(findurlbyextension .m3u8)
-		if [[ $url == "" ]]; then
+		if [[ "$url" == "" ]]; then
 			zenity --error --text="m3u8 link not found."
 		else
 			# findurlbyextension found a url so now we must prefix the proper protocol.
@@ -516,7 +520,7 @@ openstream() {
 	fi
 
 	# Now we launch our player.
-	if [[ ! $url == "" ]]; then
+	if [[ ! "$url" == "" ]]; then
 		launchplayer
 	fi
 
@@ -675,7 +679,7 @@ reopencheck() {
 				question=$(getuserinputfromtextbox "Name To Save?\nYou can name links. The name will appear before the link.\nIf you don't care about giving it a name, just click \"OK\".\nEXAMPLE: \"Name $(removethename "$baseurl")\"\nIf this link is already in your history:\n\tSaving a new name will overwrite the previous name.\n\tCanceling or leaving this blank will not change the name.\nNOTE: Don't put a space after the name.")
 				if [ $? == 0 ]; then
 					if [[ $question == "" ]]; then
-						addtohistory $baseurl
+						addtohistory "$baseurl"
 					else
 						addtohistory "$question $(removethename "$baseurl")"
 					fi
