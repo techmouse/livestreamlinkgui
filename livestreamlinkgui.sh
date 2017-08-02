@@ -3,7 +3,7 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 15-JUL-17
+#Last edited: 1-AUG-17
 ########################################
 
 ########################################
@@ -497,6 +497,13 @@ checkforchat() {
 }
 
 openstream() {
+#FIXME: when the vaughnlive plugin is fixed, delete this block:
+	if [[ "$baseurl" =~ "vaughnlive.tv" ]]; then
+		streamercmd="$streamercmd --http-header Referer=http://vaughnlive.tv/$streamname"
+		url=""
+		$streamercmd -p "$playercmd $@" $extralsflags "hlsvariant://https://hls-ord-4a.vaughnsoft.net/den/live/live_$streamname/playlist.m3u8" "$lsquality"
+	fi
+
 	#Non-livestreamer/streamlink supported streams are better suited here. Copy and paste blocks to use a template.
 	if [[ "$baseurl" =~ "arconaitv.me" && true == false ]]; then
 		url=$(findurlbyextension .m3u8)
@@ -655,6 +662,7 @@ reopencheck() {
 	FALSE \"Reopen Stream And Chat(if possible)\" \\
 	FALSE \"Loop Forever\" \\
 	FALSE \"Save Link: $baseurl\" \\
+	FALSE \"Open Link in Browser: $(removethename "$baseurl")\" \\
 	FALSE \"Open A New Link\" \\
 	FALSE \"Save A New Link\" \\" > $configdir/livestreamlinkgui-deleteme
 #	FALSE \"(Experimental) Dig for a URL (REOPEN) (HTTP)\" \\
@@ -689,66 +697,71 @@ reopencheck() {
 					addtohistory "$baseurl"
 				fi
 			else
-				if [[ $checklist == "Remove A Saved Link" ]]; then
-					removefromhistorydialog
+				if [[ $checklist == *"Open Link in Browser: "* ]]; then
+					xdg-open $(removethename "$baseurl") &
+					reopencheck
 				else
-					if [[ $checklist == "Open A New Link" ]]; then
-						urlwrangler
+					if [[ $checklist == "Remove A Saved Link" ]]; then
+						removefromhistorydialog
 					else
-						if [[ $checklist == "Attempt to Reopen" ]]; then
-							openstream
+						if [[ $checklist == "Open A New Link" ]]; then
+							urlwrangler
 						else
-							if [[ $checklist == "Reopen Stream And Chat"* ]]; then
-								openchat &
+							if [[ $checklist == "Attempt to Reopen" ]]; then
 								openstream
 							else
-								if [[ $checklist == "Loop Forever" ]]; then
-									loopforever=true
-									playercmd=$playercmd" --fullscreen"
-									shouldreopencheck=false
+								if [[ $checklist == "Reopen Stream And Chat"* ]]; then
+									openchat &
 									openstream
 								else
-									if [[ $checklist == "Save A New Link" ]]; then
-										question=$(getuserinputfromtextbox "URL To Save?")
-										if [ $? == 0 ]; then
-											addtohistory "$question"
-											mainmenu
-										else
-											zenity --error --text="No URL detected."
-											mainmenu
-										fi
+									if [[ $checklist == "Loop Forever" ]]; then
+										loopforever=true
+										playercmd=$playercmd" --fullscreen"
+										shouldreopencheck=false
+										openstream
 									else
-										if [[ $checklist == *"Dig"*"REOPEN"*"HTTP"* ]]; then
-											digforurl http
-										else
-											if [[ $checklist == *"Dig"*"REOPEN"*"HLS"* ]]; then
-												digforurl hls
+										if [[ $checklist == "Save A New Link" ]]; then
+											question=$(getuserinputfromtextbox "URL To Save?")
+											if [ $? == 0 ]; then
+												addtohistory "$question"
+												mainmenu
 											else
-												if [[ $checklist == *"Dig"*"NEW"*"HTTP"* ]]; then
-													question=$(getuserinputfromtextbox "URL?")
-													if [ $? == 0 ]; then
-														baseurl="$question"
-														digforurl http
-														reopencheck
-													else
-														zenity --error --text="No URL detected."
-														mainmenu
-													fi
+												zenity --error --text="No URL detected."
+												mainmenu
+											fi
+										else
+											if [[ $checklist == *"Dig"*"REOPEN"*"HTTP"* ]]; then
+												digforurl http
+											else
+												if [[ $checklist == *"Dig"*"REOPEN"*"HLS"* ]]; then
+													digforurl hls
 												else
-													if [[ $checklist == *"Dig"*"NEW"*"HLS"* ]]; then
+													if [[ $checklist == *"Dig"*"NEW"*"HTTP"* ]]; then
 														question=$(getuserinputfromtextbox "URL?")
 														if [ $? == 0 ]; then
 															baseurl="$question"
-															digforurl hls
+															digforurl http
 															reopencheck
 														else
 															zenity --error --text="No URL detected."
 															mainmenu
 														fi
 													else
-														baseurl=$checklist
-														putlinkattopofhistory "$baseurl"
-														urlwrangler "$baseurl"
+														if [[ $checklist == *"Dig"*"NEW"*"HLS"* ]]; then
+															question=$(getuserinputfromtextbox "URL?")
+															if [ $? == 0 ]; then
+																baseurl="$question"
+																digforurl hls
+																reopencheck
+															else
+																zenity --error --text="No URL detected."
+																mainmenu
+															fi
+														else
+															baseurl=$checklist
+															putlinkattopofhistory "$baseurl"
+															urlwrangler "$baseurl"
+														fi
 													fi
 												fi
 											fi
