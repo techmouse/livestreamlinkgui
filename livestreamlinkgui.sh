@@ -3,7 +3,7 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 1-AUG-17
+#Last edited: 26-NOV-17
 ########################################
 
 ########################################
@@ -35,7 +35,14 @@ fi
 export playercmd="vlc --network-caching=15000 --no-qt-error-dialogs --no-repeat --no-loop --play-and-exit"
 
 #Extra flags for livestreamer/streamlink. If you want to add some extra flags for livestreamer, streamlink or any future forks, add them to the variable below.
-export extralsflags=""
+
+#You can now have a secondary plugin directory. It's at <your LiveStreamLinkGUI config directory>/plugins. Plugins in this secondary directory take priority over the default plugins. Some websites like being a pain and frequently stop working with Livestreamer/Streamlink. And if you were to find a fix for that site's plugin and wanted to change it manually, you would have to elevate yourself to superuser status, edit the file, and then save. Then you would have to do this with every system that uses Livestreamer/Streamlink. It can be very annoying when all you want to do is turn on a show while you work. But now, you can save plugins you edit yourself to <your LiveStreamLinkGUI config directory>/plugins without needing an admin password, set a cloud service to sync the directory across all of your systems, and they will automatically update when you edit a plugin! So when a fix is found for a website, you only need to make one change on one system and the rest will update, too!
+if [ -d "$configdir/plugins" ]; then
+	export extralsflags="--plugin-dirs $configdir/plugins"
+else
+	export extralsflags=""
+fi
+
 
 #Youtube preferred resolution. This is for what resolution you prefer when opening Youtube videos and streams.
 export youtuberesolution="360p"
@@ -69,11 +76,11 @@ launchplayer(){
 			fi
 		done
 		if [[ $found == false ]]; then
-			result=$($streamercmd "$url")
+			result=$($streamercmd $@ $extralsflags $url)
 			if [[ "$result" == *"No plugin can handle"* ]]; then
 				digforurl http
 			else
-				$streamercmd -p "$playercmd $@" $extralsflags "$url" "$lsquality"
+				$streamercmd -p "$playercmd $@" $extralsflags $url $lsquality
 			fi
 		fi
 	fi
@@ -368,7 +375,7 @@ urlwrangler(){
 
 			#veetle check
 			*"veetle.com"*)
-				extralsflags=$extralsflags" --player-continuous-http"
+				extralsflags="$extralsflags --player-continuous-http"
 				openstream
 			;;
 
@@ -439,7 +446,7 @@ openchat() {
 		xdg-open http://www.hitbox.tv/embedchat/$streamname?autoconnect=true
 	fi
 
-	if [[ $url =~ "arconaitv.me" ]]; then
+	if [[ $url =~ "arconai.tv" ]]; then
 		#rm is dangerous; make the file empty instead:
 		>$configdir/livestreamlinkgui-deleteme
 		wget "$url" -O $configdir/livestreamlinkgui-deleteme
@@ -482,8 +489,8 @@ checkforchat() {
 			fi
 		fi
 
-		if [[ $url =~ "arconaitv.me" ]]; then
-			streamname=${url##*arconaitv.me/}
+		if [[ $url =~ "arconai.tv" ]]; then
+			streamname=${url##*arconai.tv/}
 			streamname=$(echo $streamname | sed 's/\///g')
 			zenity --question --text="Arconai link detected. Open $streamname's chat?" --title="LiveStreamLinkGUI: $streamname"
 			if [[ $? == 0 ]]; then
@@ -497,25 +504,7 @@ checkforchat() {
 }
 
 openstream() {
-#FIXME: when the vaughnlive plugin is fixed, delete this block:
-	if [[ "$baseurl" =~ "vaughnlive.tv" ]]; then
-		streamercmd="$streamercmd --http-header Referer=http://vaughnlive.tv/$streamname"
-		url=""
-		$streamercmd -p "$playercmd $@" $extralsflags "hlsvariant://https://hls-ord-4a.vaughnsoft.net/den/live/live_$streamname/playlist.m3u8" "$lsquality"
-	fi
-
 	#Non-livestreamer/streamlink supported streams are better suited here. Copy and paste blocks to use a template.
-	if [[ "$baseurl" =~ "arconaitv.me" && true == false ]]; then
-		url=$(findurlbyextension .m3u8)
-		if [[ "$url" == "" ]]; then
-			zenity --error --text="m3u8 link not found."
-		else
-			# findurlbyextension found a url so now we must prefix the proper protocol.
-			url="http://$url"
-#			playercmd="$playercmd --no-repeat"
-		fi
-	fi
-
 	if [[ "$baseurl" =~ "ssh101.com" ]]; then
 		url=$(findurlbyextension .m3u8)
 		if [[ "$url" == "" ]]; then
