@@ -16,16 +16,19 @@ If the stream is lost or closed for whatever reason, you have the option to "loo
 ### Dig for URL
 When you give LiveStreamLinkGUI a link, it will check to see if the link is a direct link to a media file. If it's not, it will then check to see if a plugin exists for the link. If no plugin is found, it will then "dig" through a link and search for common video types and automatically pipe them into the video player. For example, you could give LiveStreamLinkGUI this link, "https://www.ispot.tv/ad/7mvR/the-partnership-at-drugfreeorg-awkward-silence" and LiveStreamLinkGUI will automatically find the video link and play it, even though neither Livestreamer or Streamlink support the site. So how do you use it? The same as you would for any link! It's automatic!
 
+### Userspace plugin directory
+Some websites like being a pain and frequently stop working with Livestreamer/Streamlink. And if you were to find a fix for that site's plugin (and wanted to change the plugin manually, instead of waiting for it to be updated in the repositories), you would have to elevate yourself to superuser status, edit the file, and then save it. Then you would have to do this with every system that uses Livestreamer/Streamlink, which involves memorizing, writing down, emailing, or somehow keeping track of the changes you need to make. It can be very annoying when all you want to do is turn on a show while you work. But now, you can save plugins you edit yourself to $configdir/plugins without needing an admin password, set a cloud service to sync the directory across all of your systems, and they will automatically update when you edit a plugin! So when a fix is found for a website, you only need to make one change on one system and the rest will update, too! Plugins in this secondary directory take priority over the default plugins, and you only need to add the plugins you want to overwrite the default plugins.
+
 ### Ping sites
 It's now possible to ping live streams and sites automatically when you launch LiveStreamLinkGUI. If a live stream is available, a message will appear next to the link that says "(Online!)", if the stream is hosting another stream, it will say "(Hosting)", and if the stream is offline, it will say "(Offline)". Pretty neat, huh? So how do you make use of it? Simply put LSLGUIping in the stream's name. For example, "Hey I know this guy! LSLGUIping He loves pizza! https://www.twitch.tv/sirclare" and LiveStreamLinkGUI will take care of the rest.
 #### NOTE1: This can greatly increase the time it takes to load a menu, especially if you set it up to ping 15+ streams. If you enjoy how quick LiveStreamLinkGUI starts up, then you can ignore this feature.
 #### NOTE2: This is still experimental and so far only works well for live streams.
 
 ### Additional sites
-I've added support for sites like twit.tv, roosterteeth.com, and a few other sites. LiveStreamLinkGUI is designed so that adding support for other sites shouldn't be much of a chore.
+I've added support for sites like twit.tv, roosterteeth.com, and a few other sites. LiveStreamLinkGUI is designed so that adding support for other sites shouldn't be much of a chore. And even if LiveStreamLinkGUI doesn't specifically support the site, it's still quite possible it can play content.
 
 ### Additional Media
-LiveStreamLinkGUI doesn't just support streams. It also supports direct links to media. Including remote media and local media on your computer. And if you want to watch something on a webpage but don't have the direct link to it, LiveStreamLinkGUI will "dig" for it automatically.
+LiveStreamLinkGUI doesn't just support streams. It also supports direct links to media. Including remote media on a server, and local media on your computer. And if you want to watch something on a webpage but don't have the direct link to it, LiveStreamLinkGUI will "dig" for it automatically.
 
 ### Configurations
 All of the user specific configurations are at the top of the script. I would recommend going through them before running the script, but there is also a first time setup GUI which will help take you through the more basic configurations.
