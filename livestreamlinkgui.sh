@@ -425,7 +425,7 @@ urlwrangler(){
 			*"twitch.tv"*)
 				streamname=${url##*/}
 				#Use livestreamer --twitch-oauth-authenticate to get this token (it's in the url):
-				extralsflags="$extralsflags --twitch-oauth-token=ebgmvmpwggrknneagrslk5cq4ydfos"
+#				extralsflags="$extralsflags --twitch-oauth-token="
 				openstream
 			;;
 
