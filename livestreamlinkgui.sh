@@ -3,14 +3,14 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 25-FEB-18
+#Last edited: 12-NOV-19
 ########################################
 
 ########################################
 #User Preferences
 ########################################
 #You can change the value below to easily switch back and forth between livestreamer, streamlink and any future forks.
-export streamercmd="streamlink"
+export streamercmd="streamlink --http-no-ssl-verify"
 
 #LiveStreamLinkGUI config directory; If you change this, the old directory will still exist if this script has been executed at least once on your system. If the specified directory doesn't exist, it will be created during setup.
 export configdir=$HOME/.livestreamlinkgui
@@ -176,16 +176,15 @@ removefromhistory(){
 
 removefromhistorydialog(){
 	echo "zenity --list \\
-	--radiolist \\
 	--text \"Which Link To Remove?\" \\
-	--width=400 --height=250 \\
+	--width=500 --height=350 \\
 	--title=\"LiveStreamLinkGUI: Remove A Link\" \\
-	--column=\"?\" --column=\"Available Choices:\" \\" > $configdir/livestreamlinkgui-deleteme
+	--column=\"Available Choices:\" \\" > $configdir/livestreamlinkgui-deleteme
 	while read line
 	do
-		echo "	FALSE \"$line\" \\" >> $configdir/livestreamlinkgui-deleteme
+		echo "	\"$line\" \\" >> $configdir/livestreamlinkgui-deleteme
 	done < "$configdir/history"
-	echo "	FALSE \"Go Back\"" >> $configdir/livestreamlinkgui-deleteme
+	echo "	\"Go Back\"" >> $configdir/livestreamlinkgui-deleteme
 	choice=$($configdir/livestreamlinkgui-deleteme)
 	>$configdir/livestreamlinkgui-deleteme
 	if [ $? == 0 ]; then
@@ -589,7 +588,7 @@ openstream() {
 #ams = amsterdam, nl
 #Known working alts:
 #4a. 1a. 2a.
-		$streamercmd -p "$playercmd $@" "$extralsflags" "hlsvariant://https://hls-ord-4a.vaughnsoft.net/den/live/live_$streamname/playlist.m3u8" "$lsquality"
+		$streamercmd -p "$playercmd $@ $extralsflags" "hlsvariant://https://hls-ord-4a.vaughnsoft.net/den/live/live_$streamname/playlist.m3u8" "$lsquality"
 	fi
 
 	#Non-livestreamer/streamlink supported streams are better suited here. Copy and paste blocks to use a template.
@@ -683,7 +682,7 @@ getuserinputfromtextbox(){
 
 createaplaylist(){
 	mkdir -p $configdir/playlists
-	tmp=$(getuserinputfromtextbox "What do you want to name the playlist?\n\nNOTES:\n-The playlist name will also be the filename so use appropriate characters.\n-Deleting playlists is outside the scope of LSLGUI as rm is dangerous,\nso you will have to delete any you create manually.\n\nYour playlists will be saved at $configdir/playlists/")
+	tmp=$(getuserinputfromtextbox "What do you want to name the new playlist?\n\nNOTES:\n-The playlist name will also be the filename so use appropriate characters.\n-Deleting playlists is outside the scope of LSLGUI, as rm is dangerous, so\n you can either rename and repurpose unused playlists, or manually delete\n any you create.\n\nYour playlists will be saved at $configdir/playlists/")
 	if [[ ! "$tmp" == "" ]]; then
 		>"$configdir/playlists/$tmp"
 		editplaylistoptions "$tmp"
@@ -696,16 +695,15 @@ createaplaylist(){
 editplaylistoptions(){
 	if ! [[ "$1" ]]; then
 		echo "zenity --list \\
-		--radiolist \\
 		--text \"Which Playlist?\" \\
-		--width=500 --height=300 \\
+		--width=500 --height=350 \\
 		--title=\"LiveStreamLinkGUI\" \\
-		--column=\"?\" --column=\"Available Choices:\" \\" > $configdir/livestreamlinkgui-deleteme
+		--column=\"Available Choices:\" \\" > $configdir/livestreamlinkgui-deleteme
 
 		for i in $configdir/playlists/*; do
 			if [ -f "$i" ]; then
 				i=${i##*"/"}
-				echo "	FALSE \"$i\" \\" >> $configdir/livestreamlinkgui-deleteme
+				echo "	\"$i\" \\" >> $configdir/livestreamlinkgui-deleteme
 			fi
 		done
 
@@ -715,7 +713,7 @@ editplaylistoptions(){
 		tmp="$1"
 	fi
 
-	if [[ "$tmp" ]]; then
+	if [[ "$tmp" ]] && ! [[ "$tmp" == "" ]]; then
 		if ! [[ -f "$configdir/playlists/$tmp" ]]; then
 			#File doesn't exist. Create it.
 			>"$configdir/playlists/$tmp"
@@ -725,7 +723,7 @@ editplaylistoptions(){
 		echo "zenity --list \\
 		--checklist \\
 		--text \"What options do you want the playlist to have?\" \\
-		--width=500 --height=300 \\
+		--width=500 --height=350 \\
 		--title=\"LiveStreamLinkGUI\" \\
 		--column=\"?\" --column=\"Available Options:\" \\
 			FALSE \"Ask To Open Chat For Each Link\" \\
@@ -755,6 +753,8 @@ editplaylistoptions(){
 		done < "$configdir/livestreamlinkgui-deleteme"
 
 		>$configdir/livestreamlinkgui-deleteme
+	else
+		zenity --error --title="LiveStreamLinkGUI" --text="Canceled."
 	fi
 }
 
@@ -763,16 +763,15 @@ editaplaylist(){
 	if ! [ "$tmp" ]; then
 		# A playlist wasn't passed so we ask user to pick one.
 		echo "zenity --list \\
-		--radiolist \\
 		--text \"Which Playlist?\" \\
-		--width=500 --height=300 \\
+		--width=500 --height=350 \\
 		--title=\"LiveStreamLinkGUI\" \\
-		--column=\"?\" --column=\"Available Choices:\" \\" > $configdir/livestreamlinkgui-deleteme
+		--column=\"Available Choices:\" \\" > $configdir/livestreamlinkgui-deleteme
 
 		for i in $configdir/playlists/*; do
 			if [ -f "$i" ]; then
 				i=${i##*"/"}
-				echo "	FALSE \"$i\" \\" >> $configdir/livestreamlinkgui-deleteme
+				echo "	\"$i\" \\" >> $configdir/livestreamlinkgui-deleteme
 			fi
 		done
 
@@ -782,8 +781,8 @@ editaplaylist(){
 
 	echo "zenity --list \\
 	--checklist \\
-	--text \"What links do you want to add to the playlist?\" \\
-	--width=500 --height=300 \\
+	--text \"What links do you want to the playlist to have?\" \\
+	--width=500 --height=350 \\
 	--title=\"LiveStreamLinkGUI\" \\
 	--column=\"?\" --column=\"Available Choices:\" \\" > $configdir/livestreamlinkgui-deleteme
 
@@ -824,24 +823,26 @@ editaplaylist(){
 
 editplaylistsmenu(){
 	echo "zenity --list \\
-	--radiolist \\
 	--text \"Which Playlist To Edit?\" \\
-	--width=500 --height=300 \\
+	--width=500 --height=350 \\
 	--title=\"LiveStreamLinkGUI\" \\
-	--column=\"?\" --column=\"Options:\" \\
-		TRUE \"Create A New Playlist\" \\
-		FALSE \"Rename A Playlist\" \\
-		FALSE \"Edit A Playlist's Options\" \\" >> $configdir/livestreamlinkgui-deleteme
+	--column=\"Options:\" \\
+		\"Create A New Playlist\" \\
+		\"Rename A Playlist\" \\
+		\"Edit A Playlist's Options\" \\" >> $configdir/livestreamlinkgui-deleteme
 
 	for i in $configdir/playlists/*; do
 		if [ -f "$i" ]; then
 			i=${i##*"/"}
-			echo "	FALSE \"$i\" \\" >> $configdir/livestreamlinkgui-deleteme
+			echo "	\"$i\" \\" >> $configdir/livestreamlinkgui-deleteme
 		fi
 	done
-	echo "	FALSE \"Go Back\"" >> $configdir/livestreamlinkgui-deleteme
+	echo "	\"Go Back\"" >> $configdir/livestreamlinkgui-deleteme
 
 	tmp=$($configdir/livestreamlinkgui-deleteme)
+	if [[ $? == 0 ]] && [[ "$tmp" == "" ]]; then
+		tmp="Create A New Playlist"
+	fi
 	>$configdir/livestreamlinkgui-deleteme
 
 	if ! [[ "$tmp" == "" ]]; then
@@ -865,16 +866,15 @@ editplaylistsmenu(){
 
 renameaplaylist(){
 	echo "zenity --list \\
-	--radiolist \\
 	--text \"Which Playlist To Rename?\" \\
-	--width=500 --height=300 \\
+	--width=500 --height=350 \\
 	--title=\"LiveStreamLinkGUI\" \\
-	--column=\"?\" --column=\"Available Choices:\" \\" > $configdir/livestreamlinkgui-deleteme
+	--column=\"Available Choices:\" \\" > $configdir/livestreamlinkgui-deleteme
 
 	for i in $configdir/playlists/*; do
 		if [ -f "$i" ]; then
 			i=${i##*"/"}
-			echo "	FALSE \"$i\" \\" >> $configdir/livestreamlinkgui-deleteme
+			echo "	\"$i\" \\" >> $configdir/livestreamlinkgui-deleteme
 		fi
 	done
 
@@ -882,14 +882,14 @@ renameaplaylist(){
 	>$configdir/livestreamlinkgui-deleteme
 
 	if ! [[ "$tmp" == "" ]]; then
-		tmp2=$(getuserinputfromtextbox "What do you want to rename $tmp?\n\nNOTES:\n-The playlist name will also be the filename so use appropriate characters.\n-Deleting playlists is outside the scope of LSLGUI as rm is dangerous,\nso you will have to delete any you create manually.\n\nYour playlists will be saved at $configdir/playlists/")
+		tmp2=$(getuserinputfromtextbox "What do you want to rename $tmp to?\n\nNOTES:\n-The playlist name will also be the filename so use appropriate characters.\n-Deleting playlists is outside the scope of LSLGUI, as rm is dangerous, so\n you can either rename and repurpose unused playlists, or manually delete\n any you create.\n\nYour playlists will be saved at $configdir/playlists/")
 		if ! [[ "$tmp2" == "" ]]; then
 			mv "$configdir/playlists/$tmp" "$configdir/playlists/$tmp2"
 		else
-			zenity --error --title="LiveStreamLinkGUI" --text="Rename was canceled."
+			zenity --error --title="LiveStreamLinkGUI" --text="Canceled."
 		fi
 	else
-		zenity --error --title="LiveStreamLinkGUI" --text="Rename was canceled."
+		zenity --error --title="LiveStreamLinkGUI" --text="Canceled."
 	fi
 
 	>$configdir/livestreamlinkgui-deleteme
@@ -898,56 +898,63 @@ renameaplaylist(){
 mainmenu(){
 	if ! [[ "$baseurl" == "" ]]; then
 		echo "zenity --list \\
-		--radiolist \\
 		--text \"$reopentext\" \\
-		--width=500 --height=250 \\
+		--width=500 --height=350 \\
 		--title=\"LiveStreamLinkGUI: $(gettitlename)\" \\
-		--column=\"?\" --column=\"What Now?:\" \\
-		TRUE \"Attempt to Reopen\" \\
-		FALSE \"Reopen Stream And Chat(if possible)\" \\
-		FALSE \"Loop Forever\" \\
-		FALSE \"Save Link: $baseurl\" \\
-		FALSE \"Open Link in Browser: $(removethename "$baseurl")\" \\
-		FALSE \"Open A New Link\" \\
-		FALSE \"Save A New Link\" \\" > $configdir/livestreamlinkgui-deleteme
+		--column=\"What Now?:\" \\
+		\"Attempt to Reopen\" \\
+		\"Reopen Stream And Chat(if possible)\" \\
+		\"Loop Forever\" \\
+		\"Save Link: $baseurl\" \\
+		\"Open Link in Browser: $(removethename "$baseurl")\" \\
+		\"Open A New Link\" \\
+		\"Save A New Link\" \\" > $configdir/livestreamlinkgui-deleteme
 	else
 		echo "zenity --list \\
-		--radiolist \\
 		--text \"Main Menu:\" \\
-		--width=500 --height=300 \\
+		--width=500 --height=350 \\
 		--title=\"LiveStreamLinkGUI\" \\
-		--column=\"?\" --column=\"Available Choices:\" \\
-		TRUE \"Open A New Link\" \\
-		FALSE \"Save A New Link\" \\" > $configdir/livestreamlinkgui-deleteme
+		--column=\"Available Choices:\" \\
+		\"Open A New Link\" \\
+		\"Save A New Link\" \\" > $configdir/livestreamlinkgui-deleteme
 	fi
 
 	tmp=false
 	for i in $configdir/playlists/*; do
 		if [ -f "$i" ]; then
 			if [[ $tmp == false ]]; then
-				echo "	FALSE \"Edit Playlists\" \\" >> $configdir/livestreamlinkgui-deleteme
+				echo "	\"Create/Edit Playlists\" \\" >> $configdir/livestreamlinkgui-deleteme
 				tmp=true
 			fi
 			i=${i##*"/"}
-			echo "	FALSE \"$i\" \\" >> $configdir/livestreamlinkgui-deleteme
+			echo "	\"$i\" \\" >> $configdir/livestreamlinkgui-deleteme
 		fi
 	done
 	if [[ $tmp == false ]]; then
-		echo "	FALSE \"Create A Playlist\" \\" >> $configdir/livestreamlinkgui-deleteme
+		echo "	\"Create A Playlist\" \\" >> $configdir/livestreamlinkgui-deleteme
 	fi
 
 	while read line
 	do
 		string=$(getpingstring "$line")
-		echo "	FALSE \"$string\" \\" >> $configdir/livestreamlinkgui-deleteme
+		echo "	\"$string\" \\" >> $configdir/livestreamlinkgui-deleteme
 
 	done < "$configdir/history"
-	echo "	FALSE \"Remove A Saved Link\" \\" >> $configdir/livestreamlinkgui-deleteme
-	echo "	FALSE \"Close Program\"" >> $configdir/livestreamlinkgui-deleteme
+	echo "	\"Remove A Saved Link\" \\" >> $configdir/livestreamlinkgui-deleteme
+	echo "	\"Close Program\"" >> $configdir/livestreamlinkgui-deleteme
+
 	checklist=$($configdir/livestreamlinkgui-deleteme)
+	tmp=$?
 	>$configdir/livestreamlinkgui-deleteme
 
-	if [[ "$checklist" ]]; then
+	if [[ "$tmp" == 0 ]]; then
+		if [[ "$checklist" == "" ]]; then
+			if [[ "$baseurl" == "" ]]; then
+				checklist="Open A New Link"
+			else
+				checklist="Attempt to Reopen"
+			fi
+		fi
 		case "$checklist" in
 		"Close Program")
 			exit
@@ -1029,7 +1036,7 @@ mainmenu(){
 			createaplaylist
 			mainmenu
 			;;
-		"Edit Playlists")
+		"Create/Edit Playlists")
 			editplaylistsmenu
 			mainmenu
 			;;
@@ -1085,7 +1092,7 @@ else
 		chmod u+x $configdir/livestreamlinkgui-deleteme
 
 		#Ask about stream quality priority.
-		question=$(zenity --entry --text="Stream quality priority?\nUse commas to separate different qualities.\nThese values are saved at $configdir/qualitypriority.\nDefault priority: $lsquality" --entry-text="$lsquality" --title="LiveStreamLinkGUI")
+		question=$(zenity --entry --text="Stream quality priority?\nUse commas to separate different qualities.\nThese values are saved at $configdir/qualitypriority.\nSome examples: high, medium, low, 1080p, 720p, best, worst" --entry-text="$lsquality" --title="LiveStreamLinkGUI")
 		if [[ $? == 1 ]]; then
 			#Canceled.
 			zenity --warning --text="Canceled. No configuration was written. Setup has been halted. If you want to run the setup again, delete $configdir and run this script again. Otherwise all user specific configurations will have to be created manually." --title="LiveStreamLinkGUI"
@@ -1094,9 +1101,9 @@ else
 			echo "$question" > $configdir/qualitypriority
 
 			#Ask about chat prompt.
-			question=$(zenity --list --radiolist --text="Some streams have popout chat windows for your webbrowser\n(such as Twitch and Vaughnlive) and LiveStreamLinkGUI supports\nopening chat windows for some of these websites.\nIf LiveStreamLinkGUI can open a stream's chat in your browser,\nit will ask you if you want to open it every time.\n\nDo you want to enable this?\n\nThis value is saved at $configdir/chatopenpref" --title="LiveStreamLinkGUI" --width=600 --height=400 --column="?" --column="Options:" TRUE "Always Ask" FALSE "Always Open Without Asking" FALSE "Never Ask Or Open")
+			question=$(zenity --list --text="Some streams have popout chat windows for your webbrowser\n(such as Twitch and Vaughnlive) and LiveStreamLinkGUI supports\nopening chat windows for some of these websites.\nIf LiveStreamLinkGUI can open a stream's chat in your browser,\nit will ask you if you want to open it every time.\n\nDo you want to enable this?\n\nThis value is saved at $configdir/chatopenpref" --title="LiveStreamLinkGUI" --width=600 --height=400 --column="Options:" "Always Ask" "Always Open Without Asking" "Never Ask Or Open")
 
-			if [[ $? == 1 ]]; then
+			if [[ $? == 1 ]] || [[ "$question" == "" ]]; then
 				#Canceled.
 				zenity --warning --text="Canceled. No configuration was written. Setup has been halted. If you want to run the setup again, delete $configdir and run this script again. Otherwise all user specific configurations will have to be created manually." --title="LiveStreamLinkGUI"
 			else
