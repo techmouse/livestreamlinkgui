@@ -1,6 +1,5 @@
 # LiveStreamLinkGUI
 ![alt-text](Screenshot_2019-11-12.png)
-
 ![alt-text](screenshot.png)
 
 This is LiveStreamLinkGUI. It's a lightweight GUI for Livestreamer, Streamlink, and any future forks. I made it for the personal use of my family and myself, but when I looked around, I saw people making requests for things I've already implemented. So I decided to share it. Its only requirements are BASH, rtmpdump, and zenity. I wrote it in Linux, for Linux, but because it's a BASH script, it should (in theory) work for any platform that supports BASH and its requirements. I hear Win10 has some kind of BASH support but I have no idea how capable it is of running this or any other script.
