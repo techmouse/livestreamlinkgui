@@ -3,46 +3,54 @@
 ########################################
 #LiveStreamLinkGUI
 #By Mouse
-#Last edited: 12-NOV-19
+#Last edited: 13-MARCH-20
 ########################################
 
 ########################################
 #User Preferences
 ########################################
-#You can change the value below to easily switch back and forth between livestreamer, streamlink and any future forks.
-export streamercmd="streamlink --http-no-ssl-verify"
-
 #LiveStreamLinkGUI config directory; If you change this, the old directory will still exist if this script has been executed at least once on your system. If the specified directory doesn't exist, it will be created during setup.
 export configdir=$HOME/.livestreamlinkgui
 
+#You can change the value below to easily switch back and forth between livestreamer, streamlink and any future forks.
+if [ -e $configdir/streamercmd ]; then
+	export streamercmd="$(cat $configdir/streamercmd)"
+	echo "Found $configdir/streamercmd: $streamercmd"
+else
+	export streamercmd="streamlink --http-no-ssl-verify"
+fi
+
 #Preferred quality priority, from most preferred to least preferred. LiveStreamLinkGUI will check for a file named "qualitypriority" in the config directory. If one doesn't exist, LiveStreamLinkGUI will use the priority specified in the below else case. If you have LiveStreamLinkGUI in a cloud storage and synced to multiple machines, the qualitypriority file will allow weaker machines to have separate priorities from stronger machines:
 if [ -e $configdir/qualitypriority ]; then
-	export lsquality="$(cat $configdir/qualitypriority)"
-	echo "Found $configdir/qualitypriority. Prioritizing preferred stream qualities as: $lsquality"
+	export qualitypriority="$(cat $configdir/qualitypriority)"
+	echo "Found $configdir/qualitypriority: $qualitypriority"
 else
-	export lsquality="medium,low,360p,worst"
+	export qualitypriority="medium,low,360p,worst"
 fi
 
 #Opening chat preferences. When opening a stream that has a chat popout window that LiveStreamLinkGUI supports opening, the user can be prompted. The options are "ask", "ignore", and "always". "Always" will always open the chat without asking, "ask" will ask every time, and "ignore" will never ask.
 if [ -e $configdir/chatopenpref ]; then
 	export chatopenpref="$(cat $configdir/chatopenpref)"
-	echo "Found $configdir/chatopenpref. chatopenpref: $chatopenpref"
+	echo "Found $configdir/chatopenpref: $chatopenpref"
 else
 	export chatopenpref="ask"
 fi
 
-#Media player command including flags. If you want to change to a different player, or change how VLC works, you can change the variable below.
-export playercmd="vlc --network-caching=15000 --no-qt-error-dialogs --no-repeat --no-loop --play-and-exit"
-
-#Extra flags for livestreamer/streamlink. If you want to add some extra flags for livestreamer, streamlink or any future forks, add them to the variable below.
-
-#Some websites like being a pain and frequently stop working with Livestreamer/Streamlink. And if you were to find a fix for that site's plugin (and wanted to change the plugin manually, instead of waiting for it to be updated in the repositories), you would have to elevate yourself to superuser status, edit the file, and then save it. Then you would have to do this with every system that uses Livestreamer/Streamlink, which involves memorizing, writing down, emailing, or somehow keeping track of the changes you need to make. It can be very annoying when all you want to do is turn on a show while you work. But now, you can save plugins you edit yourself to <your LiveStreamLinkGUI config directory>/plugins without needing an admin password, set a cloud service to sync the directory across all of your systems, and they will automatically update when you edit a plugin! So when a fix is found for a website, you only need to make one change on one system and the rest will update, too! Plugins in this secondary directory take priority over the default plugins, and you only need to add the plugins you want to overwrite the default plugins.
-if [ -d "$configdir/plugins" ]; then
-	export extralsflags="--plugin-dirs $configdir/plugins"
+#Media player command including flags. If you want to change to a different player, or change how VLC works, you can change the variable below or create a file in the config directory named "playercmd".
+if [ -e $configdir/playercmd ]; then
+	export playercmd="$(cat $configdir/playercmd)"
+	echo "Found $configdir/playercmd: $playercmd"
 else
-	export extralsflags=""
+	export playercmd="vlc --network-caching=15000 --no-qt-error-dialogs --no-repeat --no-loop --play-and-exit"
 fi
 
+#Extra flags for livestreamer/streamlink. If you want to add some extra flags for livestreamer, streamlink or any future forks, add them to the variable below.
+export extrastreamerflags=""
+
+#You can save plugins you edit yourself to <your LSLGUI config directory>/plugins. Plugins in this secondary directory take priority over the default plugins.
+if [ -d "$configdir/plugins" ]; then
+	export extrastreamerflags="$extrastreamerflags --plugin-dirs $configdir/plugins"
+fi
 
 #Youtube preferred resolution. This is for what resolution you prefer when opening Youtube videos and streams.
 export youtuberesolution="360p"
@@ -50,7 +58,7 @@ export youtuberesolution="360p"
 export extrayoutubeflags="--play-and-exit"
 
 #Add file extensions for media types here. These are the file types LiveStreamLinkGUI will dig for and how it handles direct links to media, including local and saved links. To add support for a new file type, simply add its extension to this array.
-export filetypes=(".mp4" ".m3u8" ".flv" ".webm" ".gifv" ".ogg" ".mp3" ".mpg" ".vob" ".avi" ".opus" ".ts" ".wav")
+export filetypes=(".mp4" ".m3u8" ".flv" ".webm" ".gifv" ".ogg" ".mp3" ".mpg" ".vob" ".avi" ".opus" ".ts" ".wav" ".m4v")
 
 ########################################
 #End of User Preferences
@@ -78,11 +86,11 @@ launchplayer(){
 			fi
 		done
 		if [[ $found == false ]]; then
-			result=$($streamercmd $@ $extralsflags $url)
+			result=$($streamercmd $@ $extrastreamerflags $url)
 			if [[ "$result" == *"No plugin can handle"* ]]; then
 				digforurl http
 			else
-				$streamercmd -p "$playercmd $@" $extralsflags $url $lsquality
+				$streamercmd -p "$playercmd $@" $extrastreamerflags $url $qualitypriority
 			fi
 		fi
 	fi
@@ -424,7 +432,7 @@ urlwrangler(){
 			*"twitch.tv"*)
 				streamname=${url##*/}
 				#Use livestreamer --twitch-oauth-authenticate to get this token (it's in the url):
-#				extralsflags="$extralsflags --twitch-oauth-token="
+#				extrastreamerflags="$extrastreamerflags --twitch-oauth-token="
 				openstream
 			;;
 
@@ -442,7 +450,7 @@ urlwrangler(){
 
 			#veetle check
 			*"veetle.com"*)
-				extralsflags="$extralsflags --player-continuous-http"
+				extrastreamerflags="$extrastreamerflags --player-continuous-http"
 				openstream
 			;;
 
@@ -588,7 +596,7 @@ openstream() {
 #ams = amsterdam, nl
 #Known working alts:
 #4a. 1a. 2a.
-		$streamercmd -p "$playercmd $@ $extralsflags" "hlsvariant://https://hls-ord-4a.vaughnsoft.net/den/live/live_$streamname/playlist.m3u8" "$lsquality"
+		$streamercmd -p "$playercmd $@ $extrastreamerflags" "hlsvariant://https://hls-ord-4a.vaughnsoft.net/den/live/live_$streamname/playlist.m3u8" "$qualitypriority"
 	fi
 
 	#Non-livestreamer/streamlink supported streams are better suited here. Copy and paste blocks to use a template.
@@ -1028,7 +1036,9 @@ mainmenu(){
 			;;
 		"Loop Forever")
 			loopforever=true
-			playercmd="$playercmd --fullscreen"
+			if ! [[ "$playercmd" == *"--fullscreen"* ]]; then
+				playercmd="$playercmd --fullscreen"
+			fi
 			shouldreopencheck=false
 			openstream
 			;;
@@ -1092,7 +1102,7 @@ else
 		chmod u+x $configdir/livestreamlinkgui-deleteme
 
 		#Ask about stream quality priority.
-		question=$(zenity --entry --text="Stream quality priority?\nUse commas to separate different qualities.\nThese values are saved at $configdir/qualitypriority.\nSome examples: high, medium, low, 1080p, 720p, best, worst" --entry-text="$lsquality" --title="LiveStreamLinkGUI")
+		question=$(zenity --entry --text="Stream quality priority?\nUse commas to separate different qualities.\nThese values are saved at $configdir/qualitypriority.\nSome examples: high, medium, low, 1080p, 720p, best, worst" --entry-text="$qualitypriority" --title="LiveStreamLinkGUI")
 		if [[ $? == 1 ]]; then
 			#Canceled.
 			zenity --warning --text="Canceled. No configuration was written. Setup has been halted. If you want to run the setup again, delete $configdir and run this script again. Otherwise all user specific configurations will have to be created manually." --title="LiveStreamLinkGUI"
