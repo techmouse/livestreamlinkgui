@@ -37,14 +37,34 @@ I've added support for sites like twit.tv, roosterteeth.com, and a few other sit
 LiveStreamLinkGUI doesn't just support streams. It also supports direct links to media. Including remote media on a server, and local media on your computer. And if you want to watch something on a webpage but don't have the direct link to it, LiveStreamLinkGUI will "dig" for it automatically.
 
 ### Configurations
-All of the user specific configurations are at the top of the script. I would recommend going through them before running the script, but there is also a first time setup GUI which will help take you through the more basic configurations.
+User specific configurations are at the top of the script. I would recommend going through them before running the script the first time, but there is also a setup walkthrough which will help take you through the more basic configurations.
+
+In addition to that, you can optionally add configuration files to the LSLGUI directory and LSLGUI will make use of those files. This allows you to have the same script shared on a cloud storage service across multiple devices and still maintain different configurations for each machine. Here are the optional files LSLGUI will search for.
+
+streamercmd:
+
+This file must contain the command and flags you want to be called when opening streams. For example; "streamlink --http-no-ssl-verify"
+
+qualitypriority:
+
+This file must contain the quality of the stream you want opened. It will try to open streams based on the order you arrange them in. For example; "720p, medium, low, worst"
+
+chatopenpref:
+
+This file is where you can set whether or not you want to be asked if you want the chat to be opened for a given link, assuming there is a chat and LSLGUI supports opening it. The options are "ask" and "always". Ask means it will ask if you want the chat opened before trying to open it. Always means it will never ask, and instead always open the chat, if possible. And if the file contains literally anything other than those two words, it will never ask or open.
+
+playercmd:
+
+This file must contain the command and flags you want to be called for the player. For example; "vlc --fullscreen --no-repeat"
+
+Again, these files are all optional. You're not required to make them.
 
 ## How to use
 If you want to open a new stream, all you have to do is execute the script and select "Open A New Link". A text input box will appear and you can drag and drop the link to that text box and click "OK". You can also copy-paste the link or manually type it in, if you so choose.
 
 When the player closes, you're presented with a list of options. You can reopen it (if the stream is online), save the link for future use, loop it forever, open a new stream, open a saved stream, etc, etc. To save you a click, selecting "Close Program", is the same as clicking "Cancel", pressing ESC, or closing the window in any other way. So you don't have to scroll to the bottom every time you're done with the script.
 
-For ease of use, I have a launcher for LiveStreamLinkGUI in my DE's panel. For media machines, I also keep a launcher for timed shutdowns. It makes it very easy to watch streams while falling asleep using only a pointer device. I'm not telling you what to do, I'm just telling you what I do.
+For ease of use, I have a launcher for LiveStreamLinkGUI in my DE's panel. For media machines, I also keep a launcher for timed shutdowns. It makes it very easy to watch streams while falling asleep using only a pointer device. I'm not telling you what to do, I'm just telling you what I do. I'm not here to put your mind in a box.
 
 As a side note, there's a VLC script that allows VLC to play Youtube playlists. Naturally, LiveStreamLinkGUI gets along very well with this.
 
